@@ -1,0 +1,7 @@
+Roland MKS-7 ROMs  
+
+
+The device has two roms : ROM A managing system, bass synthesis and drums playing and patches. ROM B is on melody and chord voice board (behavior similar to ROM B of Juno 106).
+
+Mains CPU (ROM A) communicates to accessory CPU (ROM B) the parameters Melody / chord of the voice board.
+
