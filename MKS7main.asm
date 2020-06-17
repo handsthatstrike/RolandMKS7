@@ -3175,20 +3175,20 @@ L1614:
 ; entry in jump table @ L1614
 ;
 L1626: ORIW    $E7,$80
-L1629: LXI     H,$167C
+L1629: LXI     H,L167C				; data table
 L162C: CALF    L09E7
 L162E: CALF    L0D0F
 L1630: JMP     L136E
 ;
 ; entry in jump table @ L1614
 ;
-L1633: LXI     H,$1685
+L1633: LXI     H,L1685				; data table
 L1636: ORIW    $E7,$40
 L1639: JR      L162C
 ;
 ; entry in jump table @ L1614
 ;
-L163A: LXI     H,$168E
+L163A: LXI     H,L168E				; data table
 L163D: CALF    L09E7
 L163F: NEIW    $E7,$03
 L1642: MVIW    $CC,$3F
@@ -3198,7 +3198,7 @@ L164A: JR      L1630
 ;
 ; entry in jump table @ L1614
 ;
-L164B: LXI     H,$168E
+L164B: LXI     H,L168E				; data table
 L164E: CALF    L09E7
 L1650: MVIW    $CE,$3F
 L1653: EQIW    $E7,$04
@@ -3209,7 +3209,7 @@ L165C: JR      L1645
 ;
 ; entry in jump table @ L1614
 ;
-L165D: LXI     H,$1697
+L165D: LXI     H,L1697				; data table
 L1660: CALF    L09E7
 L1662: MVIW    $81,$30
 L1665: CALF    L0D0F
@@ -3217,7 +3217,7 @@ L1667: JRE     L1630
 ;
 ; entry in jump table @ L1614
 ;
-L1669: LXI     H,$168E
+L1669: LXI     H,L168E				; data table
 L166C: CALF    L09E7
 L166E: MVIW    $CC,$10
 L1671: EQIW    $E7,$07
@@ -3226,14 +3226,29 @@ L1676: MVI     A,$24
 L1678: STAW    $81
 L167A: JRE     L1645
 ;
-;
+; # DATA TABLE USED BY L1629
 ;
 L167C:
 
-	DB $00,$00,$00,$00,$3F,$00,$00,$00,$00,$3F,$00,$00,$3F,$3F,$3F,$00
-	DB $00,$00,$00,$3F,$00,$3F,$3F,$00,$00,$3F,$00,$3F,$00,$00,$3F,$3F
-	DB $00,$00,$3F,$00
-	
+	DB $00,$00,$00,$00,$3F,$00,$00,$00,$00
+;
+; # DATA TABLE USED BY L1633
+;
+L1685:	
+	DB $3F,$00,$00,$3F,$3F,$3F,$00,$00,$00
+;
+; # DATA TABLE USED BY L163A AND OTHERS
+;
+L168E:	
+	DB $00,$3F,$00,$3F,$3F,$00,$00,$3F,$00
+;
+; # DATA TABLE USED BY 165D
+;
+L1697:	
+	DB $3F,$00,$00,$3F,$3F,$00,$00,$3F,$00
+;
+;
+;
 L16A0:
 	LXI     B,$5711
 	SBCD    $FF97
