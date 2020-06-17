@@ -3028,9 +3028,11 @@ L1568:
 	DW L15CD
 	DW L15D9
 ;
-; # NEEDS OP-CODE RECONSTRUCTION! CODE NOT DATA!
 ;
-L1574: DB $20,$95,$00    
+;
+L1574: 
+	INRW    $95
+	NOP						; negates potential skip
 L1577: LXI     D,$0005
 L157A: BIT     0,$95
 L157C: LXI     D,$6505
@@ -3164,46 +3166,85 @@ L167C:
 	DB $00,$00,$3F,$00
 	
 L16A0:
-;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;
-	DB $14,$11,$57,$70,$1E,$97,$FF,$01,$A2,$48,$21,$1B 
-	DB $01,$E7,$7F,$8D,$05,$8B,$F7,$4F,$7B,$33,$24,$28,$2B,$2F,$32,$25
+	LXI     B,$5711
+	SBCD    $FF97
+	LDAW    $A2
+	SLR     A
+	MOV     C,A
+	LDAW    $E7
+	CALF    L0F8D
+	ANIW    $8B,$F7
+	JRE     L1630
+
+L16B5:
+	DB $33,$24,$28,$2B,$2F,$32,$25
 	DB $27,$2C,$2E,$31,$31
 	
 L16C1:
-;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;
-	DB $6A,$05,$69,$90,$60,$9A,$B1,$7B,$36,$01,$81
-	DB $7B,$36,$69,$7F,$7B,$36,$A1,$52,$EE,$B8
+	MVI     B,$05
+L16C3:
+	MVI     A,$90
+	ORA     A,B
+	PUSH    B
+	CALF    L0B36
+	LDAW    $81
+	CALF    L0B36
+	MVI     A,$7F
+	CALF    L0B36
+	POP     B
+	DCR     B
+	JR      L16C3
+	RET
 	
 L16D6:
-;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;
-	DB $34,$A8,$FF,$7B,$52,$24 
-	DB $A8,$FF,$7B,$66,$24,$A8,$FF,$7B,$64,$B8
+	LXI     H,$FFA8
+	CALF    L0B52
+	LXI     D,$FFA8
+	CALF    L0B66
+	LXI     D,$FFA8
+	CALF    L0B64
+	RET
+
 L16E6:
-;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;	
-	DB $69,$A0,$60,$9D,$7B,$36
-	DB $0C,$7B,$36,$69,$C0,$60,$9D,$7B,$36,$0C,$7B,$36,$B8
+	MVI     A,$A0
+	ORA     A,E
+	CALF    L0B36
+	MOV     A,D
+	CALF    L0B36
+	MVI     A,$C0
+	ORA     A,E
+	CALF    L0B36
+	MOV     A,D
+	CALF    L0B36
+	RET
+	
 L16F9:
-;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;
-	DB $69,$90,$74
-	DB $98,$E8,$7B,$36,$01,$81,$7B,$36,$69,$7F,$7B,$36,$B8
-;
+	MVI     A,$90
+	ORAW    $E8
+	CALF    L0B36
+	LDAW    $81
+	CALF    L0B36
+	MVI     A,$7F
+	CALF    L0B36
+	RET
+	
 L1709:	
+	LDAW    $E8
+	INR     A
+	LTI     A,$06
+	MVI     A,$00
+	STAW    $E8
+	INR     A
+	CALF    L0A0C
+	STAW    $97
+	RET     
+
+L1718:
 ;
-; # THIS HAS TO BE CODE FOR SOME LENGTH, NOT DATA!
-;	
-	DB $01,$E8,$41 
-	DB $37,$06,$69,$00,$63,$E8,$41,$7A,$0C,$63,$97,$B8,$01,$02,$04,$08
-	DB $10,$20,$FE,$FD,$FB,$F7,$EF,$DF,$E7,$44,$D3,$D6,$74,$B6,$B7,$E4
+; # SCALING DATA OF SOME SORT?
+;
+	DB $01,$02,$04,$08,$10,$20,$FE,$FD,$FB,$F7,$EF,$DF,$E7
+	DB $44,$D3,$D6,$74,$B6,$B7,$E4
 	DB $F7,$F6,$FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B 
 	DB $DF,$3B,$FB,$3B,$DF,$3B,$F7,$3B,$DF,$3B,$F7,$3B,$EF,$3B,$FF,$3A
 	DB $EF,$3B,$FF,$39,$6E,$F0,$E9,$E2,$1F,$D6,$18,$CA,$BA,$BE,$04,$B4
