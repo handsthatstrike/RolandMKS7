@@ -12,6 +12,61 @@
 	relaxed on
 	cpu 7810
 ;
+; ##################
+; # MKS-7 HARDWARE #
+; ##################
+;
+; Ana2Dig:
+;			0 - master tune						[input]
+;			1 - bass detune						[input]
+;			2 - dynamic sense					[input]
+;			3 - not used
+;			4 - not used
+;			5 - not used 
+;			6 - not used
+;			7 - not used
+;
+; Port A:
+;			0 - switch data read				[input]
+;			1 - switch data read				[input]
+;			2 - switch data read				[input]
+;			3 - switch data read				[input]
+;			4 - switch data read				[input]
+;			5 - bass env						[output]
+;			6 - sustain level select			[output]
+;			7 - bass waveform select			[output]
+;
+;			BUTTON SWITCH MATRIX
+;			
+;			0 			1 			2 			3 					4
+;			[3]			[6] 		[9] 		[Transpose] 		[Melody Select]
+;			[2]			[5]			[8]			[0]					[Chord Select]
+;			[1]			[4]			[7]			[MIDI Channel]		[Bass Select]
+;			[Melody]	[Chord]		[Bass]		[Rhythm]			x
+;
+; Port B:
+;			Display LED driver					[output]
+;
+; Port C:	0 - serial out to CPU				[output]
+;			1 - serial Rx MIDI					[input]
+;			2 - bass gate						[output]
+;			3 - bass S/H DMUX inhibit			[output]
+;			4 - bass S/H DMUX channel select	[output]
+;			5 - bass S/H DMUX channel select	[output]
+;			6 - bass S/H DMUX channel select	[output]
+;			7 - bass pitch clock				[output]	
+;
+; Port D:
+;			Data Bus							[in/out]
+;
+; Port F:
+;			addressing							[output]
+;
+;
+; #####################
+; # BEGIN PROGRAM ROM #
+; #####################
+;
 ; # ORIGIN
 ;
 	ORG	$0000					; definition for assembler to begin addressing @ $0000 (no mask ROM, so no special alignment needed)
@@ -26,32 +81,30 @@ L0005: RETI
 L0006: CALT    ($00B0)
 L0007: NOP
 L0008: JMP     L0297
-L000B: INX     SP
-L000C: DCX     SP
-L000D: LXI     SP,$0005
-L0010: DB $06					; data in here suggests vector table has been abused
-L0011: ANI     A,$08
-L0013: MOV     A,EAL
-L0014: MOV     A,B
-L0015: MOV     A,C
-L0016: MOV     A,D
-L0017: MOV     A,E
-L0018: MOV     A,H
-L0019: MOV     A,L
-L001A: LDAW    $00
-L001C: NOP     
+;
+; vector table has been abused -- mini data table referenced @ L1130
+;
+L000B:
+	DB $02,$03,$04,$05,$00,$06,$07,$08
+	DB $09,$0A,$0B,$0C,$0D,$0E,$0F,$01
+;
+;
+;
+L001B: NOP
+L001C: NOP
 L001D: EXA     
 L001E: EXX     
 L001F: NOP
 L0020: EI      
 L0021: RETI
 ;
+; vector table has been abused -- mini data table referenced @ L094D (SysEx related?)
 ;
-;    
-L0022: JR      L0021
-L0023: JR      L0021
-L0024: JR      L0020
-L0025: JR      L001D
+L0022:
+	DB $FE,$FD,$FB,$F7
+;
+;
+;
 L0026: NOP     
 L0027: NOP
 L0028: EXA     
@@ -117,34 +170,34 @@ L009C: JR      L00A2
 ; # MIDI Rx
 ;
 L009D: MOV     A,RXB		; MIDI Rx, very likely
-L009F: ANIW    $0B,$7F		; set some flag when MIDI Rx is ended?
+L009F: ANIW    $0B,$7F		; something with MIDI related working register
 ; fall-through or shared routine to end interrupts
 L00A2: EXA     
 L00A3: EXX     
 L00A4: EI      
 L00A5: RETI
 ;
-;
+; # MIDI System Real-Time Handling
 ;    
-L00A6: NEI     A,$FE
-L00A8: ANIW    $A5,$7F
+L00A6: NEI     A,$FE		; skip next if MIDI code is not Active Sensing
+L00A8: ANIW    $A5,$7F		; otherwise do something about Active Sensing
 L00AB: JR      L00A2
 ;
 ; # MIDI Rx related
 ;
-L00AC: LTI     A,$F8
-L00AE: JR      L00A6
-L00AF: EQI     A,$F0		; MIDI SysEx Start code
-L00B1: JR      L00BC
+L00AC: LTI     A,$F8		; skip next if MIDI code is less than $F8 (ie not System Real-Time related)
+L00AE: JR      L00A6		; otherwise handle System Real-Time related
+L00AF: EQI     A,$F0		; skip next if MIDI SysEx Start code
+L00B1: JR      L00BC		; otherwise handle SysEx Start
 L00B2: ANIW    $87,$3F
 L00B5: ORIW    $87,$80
 L00B8: STAW    $0E
 L00BA: JRE     L0095
 ;
-; # MIDI SysEx related
+; # MIDI SysEx Start Handling
 ;
-L00BC: EQI     A,$F7		; MIDI SysEx End code
-L00BE: JR      L00CC
+L00BC: EQI     A,$F7		; skip next if MIDI SysEx End code
+L00BE: JR      L00CC		; otherwise process SysEx
 L00BF: BIT     7,$87
 L00C1: JR      L00CF
 L00C2: BIT     5,$87
@@ -152,6 +205,7 @@ L00C4: JR      L00CC
 L00C5: EQIW    $0F,$12
 L00C8: JR      L00CC
 L00C9: ORIW    $87,$10
+; fall-through or jumped to for SysEx
 L00CC: ANIW    $87,$3F
 L00CF: JRE     L009F
 ;
@@ -162,8 +216,8 @@ L00D3: JRE     L00A2
 L00D5: MOV     C,A
 L00D6: OFFIW   $87,$80
 L00D9: JMP     L01DC
-L00DC: LTIW    $0E,$F0
-L00DF: JRE     L009F
+L00DC: LTIW    $0E,$F0			; skip next if $FF0E is less than $F0 (ie not System Exclusive)
+L00DF: JRE     L009F			; otherwise assume SysEx, System Common, or System Real-Time
 L00E1: DCRW    $0F
 L00E3: JR      L0103
 L00E4: LTIW    $0E,$A0
@@ -442,25 +496,25 @@ L02C8: JRE     L0278
 ; # memory mapping, port and timer setup, etc.
 ;
 L02CA: MVI     A,$0E
-L02CC: MOV     MM,A
-L02CE: MOV     SMH,A
+L02CC: MOV     MM,A				; configures memory mapping
+L02CE: MOV     SMH,A			; serial mode high
 L02D0: MVI     A,$4E
-L02D2: MOV     SML,A
-L02D4: MVI     ANM,$00
+L02D2: MOV     SML,A			; serial mode low
+L02D4: MVI     ANM,$00			; configures Analog to Digital mode
 L02D7: MVI     A,$83
-L02D9: MOV     MCC,A
-L02DB: MVI     V,$FF
-L02DD: EXA     
-L02DE: MVI     V,$FF
-L02E0: LXI     SP,$0000
+L02D9: MOV     MCC,A			; mode control
+L02DB: MVI     V,$FF			; sets working register address
+L02DD: EXA     					; exchange for alternate registers -- makes working register address the same regardless of registers used
+L02DE: MVI     V,$FF			; sets working register address
+L02E0: LXI     SP,$0000			; sets stack pointer
 L02E3: MVI     A,$00
-L02E5: LXI     H,$FF00
+L02E5: LXI     H,$FF00			; next four lines initialize $FF00~$FFFF (set working registers to all zero)
 L02E8: STAX    H+
 L02E9: EQI     L,$00
 L02EC: JR      L02E8
-L02ED: MOV     MC,A
-L02EF: MOV     MB,A
-L02F1: MOV     MF,A
+L02ED: MOV     MC,A				; Port C mode
+L02EF: MOV     MB,A				; Port B mode
+L02F1: MOV     MF,A				; Port F mode
 L02F3: MOV     PF,A
 L02F5: MOV     PB,A
 L02F7: MOV     ETMM,A
@@ -470,7 +524,7 @@ L02FF: MVIW    $02,$01
 L0302: MVIW    $03,$09
 L0305: MVI     TMM,$3F
 L0308: MVI     A,$1F
-L030A: MOV     MA,A
+L030A: MOV     MA,A				; Port A mode
 L030C: MVI     A,$96
 L030E: MOV     TM1,A
 L0310: MVI     A,$40
@@ -508,10 +562,10 @@ L0356: DCR     B
 L0357: JR      L0350
 L0358: ANI     MKL,$FB
 L035B: ANI     MKH,$F9
-L035E: MOV     A,PA			; read some state from port A
-L0360: OFFI    A,$01
-L0362: JMP     L1344		; unknown, but probably something important with engineer, test mode, or similar (button held at power-on)
-L0365: OFFI    A,$08
+L035E: MOV     A,PA			; read some state from port A (button switches)
+L0360: OFFI    A,$01		; skip next if button number 3 is not held
+L0362: JMP     L1344		; jump to TEST MODE when button No. 3 is held, probably
+L0365: OFFI    A,$08		; skip next if not ? bass waveform select ?
 L0367: JMP     L1000		; unknown, but probably something important with engineer, test mode, or similar (button held at power-on)
 ; fall-through or jumped to by L1008
 L036A: EI      
@@ -1276,7 +1330,7 @@ L0947: MOV     L,A
 L0948: MVI     H,$FF
 L094A: LDAW    $95
 L094C: STAX    H
-L094D: LXI     H,$0022
+L094D: LXI     H,L0022		; mini table (SysEx related?)
 L0950: LDAX    H+B
 L0951: ANAW    $80
 L0954: STAW    $80
@@ -1378,9 +1432,12 @@ L0A01: ADI     PC,$10
 L0A04: MOV     ($2800),A
 L0A08: ANI     PC,$F7
 L0A0B: RET     
-L0A0C: LXI     H,$1724
+L0A0C: LXI     H,L1724			; data table
 L0A0F: LDAX    H+A
-L0A10: RET     
+L0A10: RET
+;
+;
+;     
 L0A11: MOV     B,A
 L0A12: SUBNBX  H
 L0A14: NEGA    
@@ -1388,7 +1445,10 @@ L0A16: GTI     A,$01
 L0A18: RET     
 L0A19: MOV     A,B
 L0A1A: STAX    H
-L0A1B: RETS    
+L0A1B: RETS
+;
+;
+;   
 L0A1C: GTI     A,$17
 L0A1E: JR      L0A25
 L0A1F: GTI     A,$6C
@@ -2132,7 +2192,7 @@ L0ECB: LTI     A,$34
 L0ECD: RET     
 L0ECE: SUI     A,$23
 L0ED0: SLL     A
-L0ED2: LXI     H,$172E
+L0ED2: LXI     H,L172E			; data table
 L0ED5: LDEAX   H+A
 L0ED7: LXI     D,$3000
 L0EDA: MOV     A,C
@@ -2210,13 +2270,22 @@ L0F4F: RET
 ;     
 L0F50: CALF    L0A4C
 L0F52: SBCD    $FF9B
-L0F56: RET     
+L0F56: RET
+;
+;
+;     
 L0F57: CALF    L0A4C
 L0F59: SBCD    $FF99
-L0F5D: RET     
+L0F5D: RET 
+;
+;
+;    
 L0F5E: CALF    L0A4C
 L0F60: SBCD    $FF97
-L0F64: RET     
+L0F64: RET    
+;
+;
+; 
 L0F65: MVI     A,$CF
 L0F67: CALF    L0B36
 L0F69: MVI     A,$00
@@ -2245,7 +2314,7 @@ L0F8C: RET
 ;
 ;
 ;  
-L0F8D: LXI     H,$16B5
+L0F8D: LXI     H,L16B5			; data table
 L0F90: LDAX    H+A
 L0F91: MOV     B,A
 L0F92: CALF    L0EC7
@@ -2314,7 +2383,7 @@ L1053: JR      L1055
 L1054: DCR     B
 L1055: NEI     B,$14
 L1058: JRE     L10CD
-L105A: LXI     H,$10E0
+L105A: LXI     H,L10E0			; has to be data table
 L105D: LDAX    H+B
 L105E: NEI     A,$00
 L1060: RET     
@@ -2383,27 +2452,17 @@ L10D3: ORI     PA,$80
 L10D6: ANIW    $CD,$7F
 L10D9: OFFI    D,$40
 L10DC: ORIW    $CD,$80
-L10DF: RET     
-L10E0: NOP     
-L10E1: NOP     
-L10E2: NOP     
-L10E3: MOV     A,B
-L10E4: NOP     
-L10E5: LDAW    $02
-L10E7: DCX     SP
-L10E8: NOP     
-L10E9: LXI     SP,$0605
-L10EC: ANI     A,$09
-L10EE: MOV     A,EAH
-L10EF: NOP     
-L10F0: MOV     A,C
-L10F1: NOP     
-L10F2: NOP     
-L10F3: NOP     
-L10F4: NOP     
-L10F5: NOP     
-L10F6: NOP     
-L10F7: NOP     
+L10DF: RET
+;
+; # DATA TABLE REFERENCED @ L105A
+;   
+L10E0: 
+	DB $00,$00,$00,$0A,$00,$01,$02,$03
+	DB $00,$04,$05,$06,$07,$09,$08,$00
+	DB $0B,$00,$00,$00,$00,$00,$00,$00
+;
+;
+;    
 L10F8: LDAW    $E7
 L10FA: MOV     D,A
 L10FB: PUSH    B
@@ -2419,6 +2478,9 @@ L110B: MOV     A,EAH
 L110C: MOV     D,A
 L110D: MVI     B,$10
 L110F: JRE     L1137
+;
+;
+;
 L1111: EQI     B,$0F
 L1114: JR      L111B
 L1115: MOV     A,D
@@ -2435,7 +2497,7 @@ L1129: MOV     A,D
 L112A: CALL    L11CB
 L112D: JRE     L1154
 L112F: PUSH    H
-L1130: LXI     H,$000B
+L1130: LXI     H,L000B			; mini table
 L1133: LDAX    H+B
 L1134: POP     H
 L1135: MOV     B,A
@@ -2632,7 +2694,7 @@ L1279: SLL     A
 L127B: TABLE   
 L127D: JB  
 ;
-; # JUMP TABLES
+; # JUMP TABLE
 ;
 L127E: 
 	DW L1292 
@@ -2747,7 +2809,7 @@ L133D: ANIW    $93,$3E
 L1340: MVIW    $E9,$00
 L1343: RET
 ;
-; # probably engineer mode, test mode or similar
+; # TEST MODE, very likely
 ;     
 L1344: STAW    $8F
 L1346: LXI     B,$F557
@@ -3259,11 +3321,14 @@ L16A0:
 	CALF    L0F8D
 	ANIW    $8B,$F7
 	JRE     L1630
-
+;
+; data table referenced @ L0F8D
+;
 L16B5:
-	DB $33,$24,$28,$2B,$2F,$32,$25
-	DB $27,$2C,$2E,$31,$31
-	
+	DB $33,$24,$28,$2B,$2F,$32,$25,$27,$2C,$2E,$31,$31
+;
+;
+;	
 L16C1:
 	MVI     B,$05
 L16C3:
@@ -3325,11 +3390,20 @@ L1709:
 
 L1718:
 ;
-; # SCALING DATA OF SOME SORT?
+; # SCALING DATA OF SOME SORT? HOW IS THIS LOADED OR REACHED?
 ;
-	DB $01,$02,$04,$08,$10,$20,$FE,$FD,$FB,$F7,$EF,$DF,$E7
-	DB $44,$D3,$D6,$74,$B6,$B7,$E4
-	DB $F7,$F6,$FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B 
+	DB $01,$02,$04,$08,$10,$20,$FE,$FD,$FB,$F7,$EF,$DF
+	
+L1724:
+;
+; # UNKNOWN DATA REFERENCED @ L0A0C
+;	
+	DB $E7,$44,$D3,$D6,$74,$B6,$B7,$E4,$F7,$F6
+;
+; # UNKNOWN DATA REFERENCED @ L0ED2
+;	
+L172E:	
+	DB $FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B 
 	DB $DF,$3B,$FB,$3B,$DF,$3B,$F7,$3B,$DF,$3B,$F7,$3B,$EF,$3B,$FF,$3A
 	DB $EF,$3B,$FF,$39,$6E,$F0,$E9,$E2,$1F,$D6,$18,$CA,$BA,$BE,$04,$B4
 	DB $E0,$A9,$52,$A0,$4F,$97,$CC,$8E,$C5,$86,$33,$7F,$0F,$78,$51,$71 
