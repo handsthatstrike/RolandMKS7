@@ -72,17 +72,24 @@
 	ORG	$0000					; definition for assembler to begin addressing @ $0000 (no mask ROM, so no special alignment needed)
 ;
 L0000: JMP     L02CA			; jump to main initialization on power-up
-L0003: NOP     
-L0004: EI      
-L0005: RETI
+L0003: NOP						; spacer byte     
+L0004: EI      					; IRQ0 (NMI) -- enable maskable interrupts 
+L0005: RETI						; return from interrupt
 ;
-;
+; # vector table has been abused -- officially, this should not be data
 ;    
-L0006: CALT    ($00B0)
+L0006: DB $98
 L0007: NOP
+;
+; vector table -- IRQ1 (INTT0/INTT1)
+;
 L0008: JMP     L0297
 ;
 ; vector table has been abused -- mini data table referenced @ L1130
+;
+;
+; Note: This is "illegal" because this part of the vector table is supposed to handle IRQ2 (INT1/INT2)
+;       and IRQ3 (INTE0/INTE1)
 ;
 L000B:
 	DB $02,$03,$04,$05,$00,$06,$07,$08
@@ -95,6 +102,9 @@ L001C: NOP
 L001D: EXA     
 L001E: EXX     
 L001F: NOP
+;
+; vector table -- IRQ4 (INTEIN/INTAD)
+;
 L0020: EI      
 L0021: RETI
 ;
@@ -103,10 +113,13 @@ L0021: RETI
 L0022:
 	DB $FE,$FD,$FB,$F7
 ;
-;
+; # vector table -- IRQ4 (INTEIN/INTAD)
 ;
 L0026: NOP     
 L0027: NOP
+;
+; # vector table -- IRQ5 (INTSR/INTST)
+;
 L0028: EXA     
 L0029: EXX     
 L002A: OFFI    MKH,$04
@@ -380,9 +393,15 @@ L01F5: ANIW    $0B,$7F
 L01F8: EXA     
 L01F9: EXX     
 L01FA: EI      
-L01FB: RETI    
+L01FB: RETI
+;
+; # do something with a working register and then abort SysEx?
+;   
 L01FC: ANIW    $87,$3F
-L01FF: JR      L01F8
+L01FF: JR      L01F8			; jump to shared routine
+;
+;
+;
 L0200: BIT     0,$0F
 L0202: JR      L020D
 L0203: LDAW    $0D
@@ -394,9 +413,12 @@ L020D: STAW    $0D
 L020F: JRE     L0275
 L0211: EQIW    $0F,$00
 L0214: JR      L0219
-L0215: EQI     A,$41
-L0217: JR      L01FC
-L0218: JR      L0228
+L0215: EQI     A,$41			; skip next if accumulator equal to $41 (check SysEx for Roland manufacturer ID)
+L0217: JR      L01FC			; otherwise SysEx is invalid?
+L0218: JR      L0228			; jump when SysEx is good?
+;
+;
+;
 L0219: EQIW    $0F,$01
 L021C: JR      L022E
 L021D: EQI     A,$30
@@ -405,7 +427,11 @@ L0221: JR      L022A
 L0222: EQI     A,$32
 L0224: JR      L0217
 L0225: ANIW    $87,$DF
+; fall-through, or jumped to -- process valid SysEx?
 L0228: JRE     L0275
+;
+;
+;
 L022A: ORIW    $87,$20
 L022D: JR      L0228
 L022E: EQIW    $0F,$02
@@ -441,14 +467,20 @@ L026D: SUI     A,$64
 L026F: STAW    $E6
 L0271: MVIW    $0F,$00
 L0274: JR      L0278
+;
+; # something MIDI related
+;
 L0275: INRW    $0F
 L0277: NOP     
 L0278: EXA     
 L0279: EXX     
 L027A: EI      
-L027B: RETI    
-L027C: LDAW    $41
-L027E: EQAW    $40
+L027B: RETI
+;
+; # TRANSMIT INFO TO MODULE CPU? -- send serial from MAIN to MODULE
+;   
+L027C: LDAW    $41					; something with MIDI/serial Tx buffer index?
+L027E: EQAW    $40					; something with MIDI/serial Tx buffer index?
 L0281: JR      L0286
 L0282: ORI     MKH,$04
 L0285: JR      L0278
@@ -461,8 +493,11 @@ L028D: MOV     TXB,A
 L028F: MOV     A,L
 L0290: LTI     A,$70
 L0292: MVI     A,$42
-L0294: STAW    $41
+L0294: STAW    $41					; something with MIDI/serial Tx buffer index?
 L0296: JR      L0285
+;
+;
+;
 L0297: EXA     
 L0298: EXX     
 L0299: MOV     A,PF
@@ -473,10 +508,10 @@ L02A1: DSLL    EA
 L02A3: DSLL    EA
 L02A5: DMOV    B,EA
 L02A6: LXI     H,$FF89
-L02A9: MVI     PB,$00
+L02A9: MVI     PB,$00		; clear LED status?
 L02AC: MOV     PF,A
 L02AE: LDAX    H+B
-L02AF: MOV     PB,A
+L02AF: MOV     PB,A			; update LED status?
 L02B1: MOV     A,PA
 L02B3: ANI     A,$1F
 L02B5: STAW    $8D
@@ -489,7 +524,7 @@ L02C0: JR      L02C8
 L02C1: NEIW    $94,$00
 L02C4: JR      L02C8
 L02C5: DCRW    $94
-L02C7: NOP     
+L02C7: NOP   				; negate potential skip  
 L02C8: JRE     L0278
 ;
 ; # MAIN INITIALIZATION ON CPU BOOT
@@ -539,15 +574,15 @@ L0320: MVIW    $06,$80
 L0323: MVIW    $09,$80
 L0326: MVIW    $0A,$80
 L0329: MVI     A,$42
-L032B: STAW    $40
-L032D: STAW    $41
+L032B: STAW    $40					; something with MIDI/serial Tx buffer index?
+L032D: STAW    $41					; something with MIDI/serial Tx buffer index?
 L032F: MVI     A,$12
 L0331: STAW    $10
 L0333: STAW    $11
 L0335: MVI     A,$22
 L0337: STAW    $20
 L0339: STAW    $21
-L033B: CALF    L0A69		; initialization
+L033B: CALF    L0A69				; initialization
 L033D: MOV     ($3FFF),A
 L0341: MVI     PC,$0C
 L0344: MVIW    $A5,$80
@@ -601,7 +636,7 @@ L03A7: JR      L03BD
 L03A8: MOV     A,CR0
 L03AA: LXI     H,$FFA0
 L03AD: CALF    L0A11
-L03AF: NOP     
+L03AF: NOP     				; negates potential RETS
 L03B0: BIT     7,$05
 L03B2: JR      L03C1
 L03B3: ANIW    $05,$7F
@@ -619,7 +654,7 @@ L03CA: BIT     4,$0B
 L03CC: JR      L03E0
 L03CD: STAW    $9D
 L03CF: CALF    L0F0F
-L03D1: JR      L03D9
+L03D1: JR      L03D9		; can be skipped by RETS
 L03D2: MOV     D,A
 L03D3: MVI     A,$D2
 L03D5: CALF    L0B88
@@ -629,7 +664,7 @@ L03DA: MVI     A,$D3
 L03DC: CALF    L0B88
 L03DE: JRE     L0404
 L03E0: CALF    L0F0F
-L03E2: JR      L03E9
+L03E2: JR      L03E9		; can be skipped by RETS
 L03E3: MOV     D,A
 L03E4: MVI     A,$D2
 L03E6: CALF    L0B88
@@ -644,7 +679,7 @@ L03F4: OFFIW   $0B,$10
 L03F7: JR      L0408
 L03F8: STAW    $9D
 L03FA: CALF    L0F0F
-L03FC: JR      L0403
+L03FC: JR      L0403		; can be skipped by RETS
 L03FD: MOV     D,A
 L03FE: MVI     A,$B2
 L0400: CALF    L0B88
@@ -742,7 +777,7 @@ L04C6: STAW    $E8
 L04C8: ONI     A,$01
 L04CA: JRE     L0503
 L04CC: CALL    L1178
-L04CF: JRE     L04FA
+L04CF: JRE     L04FA			; can be skipped by RETS
 L04D1: BIT     2,$87
 L04D3: JR      L04DF
 L04D4: MVI     C,$A0
@@ -789,7 +824,7 @@ L052A: BIT     0,$93
 L052C: JR      L0547
 L052D: LXI     H,$FFA2
 L0530: CALF    L0A11
-L0532: JR      L0551
+L0532: JR      L0551		; can be skipped by RETS
 L0533: OFFIW   $8C,$04
 L0536: JR      L053D
 L0537: OFFIW   $8C,$01
@@ -872,7 +907,7 @@ L05D2: ANIW    $93,$FE
 L05D5: MOV     A,CR1
 L05D7: LXI     H,$FFA1
 L05DA: CALF    L0A11
-L05DC: NOP     
+L05DC: NOP   				; negates potential RETS  
 L05DD: LDAW    $CC
 L05DF: CALF    L09FE
 L05E1: OFFIW   $A5,$80
@@ -1640,12 +1675,12 @@ L0B35: RET
 ; init related?
 ;     
 L0B36: MOV     C,A
-L0B37: LDAW    $40
+L0B37: LDAW    $40			; something with MIDI/serial Tx buffer index?
 L0B39: MOV     L,A
 L0B3A: INR     A
 L0B3B: NEI     A,$70
 L0B3D: MVI     A,$42
-L0B3F: NEAW    $41		; infinite loop which can only be broken by interrupt
+L0B3F: NEAW    $41			; infinite loop which can only be broken by interrupt -- something with MIDI/serial Tx buffer index?
 L0B42: JR      L0B3F
 L0B43: MOV     B,A
 L0B44: MVI     H,$FF
@@ -1653,7 +1688,7 @@ L0B46: MOV     A,C
 L0B47: STAX    H
 L0B48: MOV     A,B
 L0B49: ORI     MKH,$06
-L0B4C: STAW    $40
+L0B4C: STAW    $40			; something with MIDI/serial Tx buffer index?
 L0B4E: ANI     MKH,$F9
 L0B51: RET
 ;
@@ -2224,11 +2259,18 @@ L0F04: ORI     H,$04
 L0F07: STAX    H
 L0F08: ORIW    $E9,$08
 L0F0B: MVIW    $86,$80
-L0F0E: RET     
-L0F0F: ONI     A,$80
-L0F11: JR      L0F15
-L0F12: ANI     A,$7F
-L0F14: RETS    
+L0F0E: RET
+;
+;
+;     
+L0F0F:
+	ONI     A,$80
+	JR      L0F15
+	ANI     A,$7F
+	RETS
+;
+;
+; 
 L0F15: XRI     A,$FF
 L0F17: ANI     A,$7F
 L0F19: RET     
@@ -2330,7 +2372,7 @@ L0F95:
 ; # probably engineer mode, test mode or similar
 ;   
 L1000: STAW    $8F
-L1002: MOV     A,($0006)
+L1002: MOV     A,(L0006)		; beyond stupid to use vector table area to hold one constant byte...
 L1006: STAW    $06
 L1008: JMP     L036A
 ;
@@ -2546,7 +2588,10 @@ L1171: CALF    L0B36
 L1173: MOV     A,E
 L1174: CALF    L0B36
 L1176: POP     B
-L1177: RET     
+L1177: RET
+;
+;
+;     
 L1178: MVI     A,$80
 L117A: MVI     B,$00
 L117C: LXI     D,$FFD4
@@ -2556,12 +2601,17 @@ L1182: INR     B
 L1183: INX     D
 L1184: EQI     B,$12
 L1187: JR      L117F
-L1188: RET     
-L1189: LDAX    D
-L118A: ANI     A,$7F
-L118C: STAX    D
-L118D: STAW    $E7
-L118F: RETS    
+L1188: RET
+;
+L1189:
+	LDAX    D
+	ANI     A,$7F
+	STAX    D
+	STAW    $E7
+	RETS
+;
+;
+;   
 L1190: LXI     D,$FFD4
 L1193: LDAX    D+$0F
 L1195: CALL    L11E8
@@ -2852,12 +2902,12 @@ L138E: CALF    L09FE
 L1390: MOV     A,CR0
 L1392: LXI     H,$FFA0
 L1395: CALF    L0A11
-L1397: LDAW    $D3
+L1397: LDAW    $D3			; can be skipped by RETS
 L1399: CALF    L09FE
 L139B: MOV     A,CR1
 L139D: LXI     H,$FFA1
 L13A0: CALF    L0A11
-L13A2: MOV     A,CR2
+L13A2: MOV     A,CR2		; can be skipped by RETS
 L13A4: STAW    $A2
 L13A6: LDAW    $CD
 L13A8: CALF    L09FE
@@ -3400,12 +3450,13 @@ L1724:
 ;	
 	DB $E7,$44,$D3,$D6,$74,$B6,$B7,$E4,$F7,$F6
 ;
-; # UNKNOWN DATA REFERENCED @ L0ED2
+; # UNKNOWN DATA REFERENCED @ L0ED2 -- at least the first 16 or 17 appear to be two-byte words
 ;	
 L172E:	
-	DB $FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B 
-	DB $DF,$3B,$FB,$3B,$DF,$3B,$F7,$3B,$DF,$3B,$F7,$3B,$EF,$3B,$FF,$3A
-	DB $EF,$3B,$FF,$39,$6E,$F0,$E9,$E2,$1F,$D6,$18,$CA,$BA,$BE,$04,$B4
+	DB $FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B,$DF,$3B
+	DB $FB,$3B,$DF,$3B,$F7,$3B,$DF,$3B,$F7,$3B,$EF,$3B,$FF,$3A,$EF,$3B
+	
+	DB $FF,$39,$6E,$F0,$E9,$E2,$1F,$D6,$18,$CA,$BA,$BE,$04,$B4
 	DB $E0,$A9,$52,$A0,$4F,$97,$CC,$8E,$C5,$86,$33,$7F,$0F,$78,$51,$71 
 	DB $EF,$6A,$EE,$64,$42,$5F,$E9,$59,$D9,$54,$15,$50,$95,$4B,$54,$47
 	DB $53,$43,$8D,$3F,$FC,$3B,$9E,$38,$6E,$35,$6E,$32,$99,$2F,$ED,$2C
