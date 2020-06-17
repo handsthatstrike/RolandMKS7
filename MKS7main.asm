@@ -2752,7 +2752,10 @@ L1343: RET
 L1344: STAW    $8F
 L1346: LXI     B,$F557
 L1349: SBCD    $FF97
-L134D: EI      
+L134D: EI
+;
+; fall-through, or entry in jump table @ L1471
+;     
 L134E: ORI     PC,$08
 L1351: ANI     PC,$8F
 L1354: LDAW    $D1
@@ -2766,6 +2769,7 @@ L1366: MOV     A,C
 L1367: XRA     D,A
 L1369: EQI     D,$00
 L136C: JRE     L13F6
+; fall-through or jumped to
 L136E: LDAW    $D2
 L1370: CALF    L09FE
 L1372: EQIW    $A7,$FF
@@ -2775,6 +2779,9 @@ L1379: JR      L1381
 L137A: LXI     B,$0000
 L137D: MVIW    $A7,$20
 L1380: JR      L1388
+;
+;
+;
 L1381: LBCD    $FF97
 L1385: MVIW    $A7,$30
 L1388: SBCD    $FF89
@@ -2842,7 +2849,7 @@ L1400: JR      L1405
 L1401: STAW    $00
 L1403: JRE     L1427
 L1405: OFFI    A,$10
-L1407: JMP     L1555
+L1407: JMP     L1555		; goes to a jump table
 L140A: ONI     A,$08
 L140C: JR      L1418
 L140D: NEI     B,$00
@@ -2927,7 +2934,7 @@ L149C: MVI     A,$0B
 L149E: STAW    $E7
 L14A0: JMP     L16A0
 ;
-;
+; entry in jump table @ L1471
 ;
 L14A3: MVI     A,$9D
 L14A5: CALF    L0B36
@@ -2938,7 +2945,7 @@ L14AD: MVI     A,$00
 L14AF: CALF    L0B36
 L14B1: JMP     L136E
 ;
-;
+; entry in jump table @ L1471
 ;
 L14B4: MVI     A,$64
 L14B6: CALL    L16D6			; missing?
@@ -2946,23 +2953,32 @@ L14B9: MVIW    $81,$3C
 L14BC: ORIW    $E7,$80
 L14BF: JR      L14B1
 ;
-;
+; entry in jump table @ L1471
 ;
 L14C0: MVI     A,$65
 L14C2: CALL    L16D6
 L14C5: MVIW    $81,$3C
 L14C8: CALL    L16C1
 L14CB: JR      L14B1
+;
+; entry in jump table @ L1471
+;
 L14CC: MVI     A,$65
 L14CE: CALL    L16D6
 L14D1: MVIW    $81,$54
 L14D4: JR      L14C8
+;
+; entry in jump table @ L1471
+;
 L14D5: MVI     A,$67
 L14D7: CALL    L16D6
 L14DA: MVIW    $03,$01
 L14DD: EQIW    $E7,$04
 L14E0: MVIW    $03,$03
 L14E3: JR      L14C5
+;
+; entry in jump table @ L1471
+;
 L14E4: MVI     A,$6A
 L14E6: CALL    L16D6
 L14E9: MVIW    $95,$6E
@@ -2970,17 +2986,26 @@ L14EC: MVIW    $03,$02
 L14EF: EQIW    $E7,$05
 L14F2: MVIW    $03,$03
 L14F5: JRE     L14C5
+;
+; entry in jump table @ L1471
+;
 L14F7: MVI     A,$66
 L14F9: CALL    L16D6
 L14FC: MVIW    $95,$06
 L14FF: MVIW    $03,$04
 L1502: JRE     L14C5
+;
+; entry in jump table @ L1471
+;
 L1504: MVI     A,$6A
 L1506: MVIW    $03,$05
 L1509: CALL    L16D6
 L150C: MVIW    $81,$3C
 L150F: CALL    L16F9
 L1512: JMP     L136E
+;
+; entry in jump table @ L1471
+;
 L1515: MVI     A,$67
 L1517: CALL    L16D6
 L151A: EQIW    $E7,$02
@@ -2991,10 +3016,16 @@ L1524: LXI     D,$6505
 L1527: CALL    L16E6
 L152A: MVIW    $03,$05
 L152D: JRE     L150C
+;
+; entry in jump table @ L1471
+;
 L152F: EQIW    $E7,$03
 L1532: MVI     A,$6B
 L1534: MVI     A,$6C
 L1536: JRE     L1506
+;
+; entry in jump table @ L1471
+;
 L1538: EQIW    $E7,$05
 L153B: MVI     A,$20
 L153D: MVI     A,$40
@@ -3006,6 +3037,9 @@ L1549: CALL    L16D6
 L154C: MVIW    $81,$24
 L154F: CALL    L16F9
 L1552: JMP     L136E
+;
+;
+;
 L1555: OFFIW   $00,$0C
 L1558: JR      L1560
 L1559: LDAW    $03
@@ -3028,16 +3062,19 @@ L1568:
 	DW L15CD
 	DW L15D9
 ;
-;
+; entry in jump table @ L1568
 ;
 L1574: 
 	INRW    $95
 	NOP						; negates potential skip
-L1577: LXI     D,$0005
-L157A: BIT     0,$95
-L157C: LXI     D,$6505
+	LXI     D,$0005
+	BIT     0,$95
+	LXI     D,$6505
 L157F: CALL    L16E6
 L1582: JMP     L136E
+;
+; entry in jump table @ L1568
+;
 L1585: LDAW    $95
 L1587: MOV     B,A
 L1588: ANI     B,$F8
@@ -3051,6 +3088,9 @@ L1597: STAW    $95
 L1599: MOV     D,A
 L159A: MVI     E,$00
 L159C: JR      L157F
+;
+; entry in jump table @ L1568
+;
 L159D: LDAW    $95
 L159F: INR     A
 L15A0: ANI     A,$03
@@ -3064,6 +3104,9 @@ L15AD: MVI     A,$60
 L15AF: STAW    $81
 L15B1: CALL    L16C1
 L15B4: JRE     L1582
+;
+; entry in jump table @ L1568
+;
 L15B6: LDAW    $95
 L15B8: EQIW    $E7,$08
 L15BB: JR      L15C1
@@ -3076,11 +3119,17 @@ L15C5: MOV     D,A
 L15C6: MVI     E,$01
 L15C8: CALL    L16E6
 L15CB: JRE     L1582
+;
+; entry in jump table @ L1568
+;
 L15CD: MVI     A,$80
 L15CF: CALF    L0E92
 L15D1: CALL    L1709
 L15D4: CALL    L16F9
 L15D7: JRE     L1582
+;
+; entry in jump table @ L1568
+;
 L15D9: BIT     0,$02
 L15DB: JR      L15E3
 L15DC: MVI     A,$80
@@ -3108,26 +3157,37 @@ L160A: MVIW    $81,$18
 L160D: LDAW    $E7
 L160F: SLL     A
 L1611: TABLE   
-L1613: JB      
-L1614: ADINC   A,$16
-L1616: DCX     H
-L1617: XRI     A,$3A
-L1619: XRI     A,$3A
-L161B: XRI     A,$4B
-L161D: XRI     A,$4B
-L161F: XRI     A,$5D
-L1621: XRI     A,$69
-L1623: XRI     A,$69
-L1625: XRI     A,$15
-L1627: JR      L160F
-L1628: CALT    ($0080)
+L1613: JB
+;
+; # JUMP TABLE
+;     
+L1614:
+	DW L1626
+	DW L1633
+	DW L163A
+	DW L163A
+	DW L164B
+	DW L164B
+	DW L165D
+	DW L1669
+	DW L1669 
+;
+; entry in jump table @ L1614
+;
+L1626: ORIW    $E7,$80
 L1629: LXI     H,$167C
 L162C: CALF    L09E7
 L162E: CALF    L0D0F
 L1630: JMP     L136E
+;
+; entry in jump table @ L1614
+;
 L1633: LXI     H,$1685
 L1636: ORIW    $E7,$40
 L1639: JR      L162C
+;
+; entry in jump table @ L1614
+;
 L163A: LXI     H,$168E
 L163D: CALF    L09E7
 L163F: NEIW    $E7,$03
@@ -3135,6 +3195,9 @@ L1642: MVIW    $CC,$3F
 L1645: CALF    L0D0F
 L1647: MVI     EOM,$00
 L164A: JR      L1630
+;
+; entry in jump table @ L1614
+;
 L164B: LXI     H,$168E
 L164E: CALF    L09E7
 L1650: MVIW    $CE,$3F
@@ -3143,11 +3206,17 @@ L1656: MVI     A,$7F
 L1658: MVI     A,$40
 L165A: STAW    $82
 L165C: JR      L1645
+;
+; entry in jump table @ L1614
+;
 L165D: LXI     H,$1697
 L1660: CALF    L09E7
 L1662: MVIW    $81,$30
 L1665: CALF    L0D0F
 L1667: JRE     L1630
+;
+; entry in jump table @ L1614
+;
 L1669: LXI     H,$168E
 L166C: CALF    L09E7
 L166E: MVIW    $CC,$10
