@@ -7,7 +7,6 @@
 ;	HOW TO COMPILE (via Macro Assembler AS V1.42 by Alfred Arnold):
 ;		asw MKS7main.asm -w -cpu 7810
 ;		P2BIN MKS7main.p MKS7main.bin -r $0000-$1FFF
-;		pause
 ;
 	relaxed on
 	cpu 7810
@@ -47,7 +46,14 @@
 ; Port B:
 ;			Display LED driver					[output]
 ;
-; Port C:	0 - serial out to CPU				[output]
+;			LIGHTING MATRIX
+;			0			1			2			3			4			5			6			7			
+;			(e)			(d)			(c)			(dp)		(g)			(f)			(b)			(a)		[lower digit]
+;			(e)			(d)			(c)			(dp)		(g)			(f)			(b)			(a)		[upper digit]	
+;			Chord		Melody		Bass		Rhythm		X			X			X			X		[note on indicator]
+;			Chord		Melody		Bass		X			X			X			X			X		[display select]
+;			
+; Port C:	0 - serial out to MODULE			[output]
 ;			1 - serial Rx MIDI					[input]
 ;			2 - bass gate						[output]
 ;			3 - bass S/H DMUX inhibit			[output]
@@ -60,8 +66,44 @@
 ;			Data Bus							[in/out]
 ;
 ; Port F:
-;			addressing							[output]
+;			addressing (latch, chip select)		[output]
 ;
+;			11xxxxxx = display select LEDs
+;			10xxxxxx = note on indicator LEDs
+;			01xxxxxx = upper digit LEDs
+;			00xxxxxx = lower digit LEDs
+;
+; --------------
+; | MEMORY MAP |
+; --------------
+;
+; $0000~$1FFF = MAIN PROGRAM ROM (IC43)
+; $2800       = ?
+; $3000       = ?
+; $FF00~$FFFF = WORKING REGISTER RAM
+;
+; #################################
+; # WORKING REGISTERS (IN CPU RAM # ($FF00~$FFFF)
+; #################################
+;
+; $FF00 = ?
+; $FF01 = ?
+; ..
+; $FF40 = serial Tx current index?
+; $FF41 = serial Tx pending index?
+; $FF42 to $FF6F = serial Tx buffer area?
+; ..
+; $FF89 = LED state A?
+; $FF8A = LED state B?
+; $FF8B	= LED state C?
+; $FF8C = LED state D?
+; $FF8D = button read state A?
+; $FF8E = button read state B?
+; ..
+; $FFA2 = dynamic sense value?
+; ..
+; $FFFE = ?
+; $FFFF = ?
 ;
 ; #####################
 ; # BEGIN PROGRAM ROM #
@@ -81,7 +123,7 @@ L0005: RETI						; return from interrupt
 L0006: DB $98
 L0007: NOP
 ;
-; vector table -- IRQ1 (INTT0/INTT1)
+; vector table -- IRQ1 (INTT0/INTT1) -- LEDs refresh and button switch reading at 20ms intervals?
 ;
 L0008: JMP     L0297
 ;
@@ -384,7 +426,7 @@ L01E6: MOV     A,C
 L01E7: LXI     H,$FFD4
 L01EA: STAX    H+B
 L01EB: INRW    $0F
-L01ED: NOP     
+L01ED: NOP 						; negate potential skip    
 L01EE: BIT     5,$87
 L01F0: JR      L01F8
 L01F1: EQIW    $0F,$12
@@ -470,12 +512,15 @@ L0274: JR      L0278
 ;
 ; # something MIDI related
 ;
-L0275: INRW    $0F
-L0277: NOP     
-L0278: EXA     
-L0279: EXX     
-L027A: EI      
-L027B: RETI
+L0275:
+	INRW    $0F
+	NOP 							; negates potential skip 
+; fall-through or shared ending   
+L0278: 
+	EXA     
+	EXX     
+	EI      
+	RETI
 ;
 ; # TRANSMIT INFO TO MODULE CPU? -- send serial from MAIN to MODULE
 ;   
@@ -484,19 +529,19 @@ L027E: EQAW    $40					; something with MIDI/serial Tx buffer index?
 L0281: JR      L0286
 L0282: ORI     MKH,$04
 L0285: JR      L0278
-L0286: MVI     H,$FF
+L0286: MVI     H,$FF				; $FFxx
 L0288: MOV     L,A
-L0289: LDAX    H+
-L028A: SKIT    FST
-L028C: NOP     
-L028D: MOV     TXB,A
+L0289: LDAX    H+					; loads from $FFxx range
+L028A: SKIT    FST					; skip next if FST interrupt (serial transmit) is set -- actually clears interrupt here
+L028C: NOP     						; negate potential skip
+L028D: MOV     TXB,A				; send data to serial output (from MAIN to MODULE)
 L028F: MOV     A,L
 L0290: LTI     A,$70
 L0292: MVI     A,$42
 L0294: STAW    $41					; something with MIDI/serial Tx buffer index?
 L0296: JR      L0285
 ;
-;
+; # LED refresh and button switch reading driven by timer interrupt
 ;
 L0297: EXA     
 L0298: EXX     
@@ -509,14 +554,14 @@ L02A3: DSLL    EA
 L02A5: DMOV    B,EA
 L02A6: LXI     H,$FF89
 L02A9: MVI     PB,$00		; clear LED status?
-L02AC: MOV     PF,A
-L02AE: LDAX    H+B
+L02AC: MOV     PF,A			; reset chip select + addressing
+L02AE: LDAX    H+B			; $FF89/FF8A/FF8B/FF8C probably, as LED status must be held in at least four banks
 L02AF: MOV     PB,A			; update LED status?
-L02B1: MOV     A,PA
+L02B1: MOV     A,PA			; read button switches?
 L02B3: ANI     A,$1F
-L02B5: STAW    $8D
+L02B5: STAW    $8D			; $FF8D -- button read state A?
 L02B7: MOV     A,B
-L02B8: STAW    $8E
+L02B8: STAW    $8E			; $FF8E -- button read state B?
 L02BA: BIT     7,$A5
 L02BC: DCRW    $A5
 L02BE: DCRW    $A7
@@ -609,8 +654,8 @@ L036D: CALF    L0E92		; init?
 L036F: CALF    L0F79		; init?
 L0371: CALF    L0F83		; init?
 L0373: CALF    L0F35		; init?
-L0375: MOV     A,CR2
-L0377: STAW    $A2
+L0375: MOV     A,CR2		; capture dynamic sense value?
+L0377: STAW    $A2			; $FFA2 -- dynamic sense value?
 L0379: ORI     PC,$08
 L037C: ANI     PC,$8F
 L037F: LDAW    $D1
@@ -633,7 +678,7 @@ L03A2: CALF    L0B88
 L03A4: BIT     4,$0B
 L03A6: JR      L03B0
 L03A7: JR      L03BD
-L03A8: MOV     A,CR0
+L03A8: MOV     A,CR0		; capture master tune value?
 L03AA: LXI     H,$FFA0
 L03AD: CALF    L0A11
 L03AF: NOP     				; negates potential RETS
@@ -815,10 +860,10 @@ L0518: MOV     A,C
 L0519: XRA     D,A
 L051B: EQI     D,$00
 L051E: JRE     L060B
-L0520: MOV     A,CR2
+L0520: MOV     A,CR2		; capture dynamic sense value?
 L0522: ONIW    $93,$3E
 L0525: JR      L052A
-L0526: STAW    $A2
+L0526: STAW    $A2			; $FFA2 -- dynamic sense value?
 L0528: JRE     L0551
 L052A: BIT     0,$93
 L052C: JR      L0547
@@ -902,9 +947,9 @@ L05C4: JR      L05CA
 L05C5: LBCD    $FF99
 L05C9: JR      L05CE
 L05CA: LBCD    $FF97
-L05CE: SBCD    $FF89
+L05CE: SBCD    $FF89		; LED related?
 L05D2: ANIW    $93,$FE
-L05D5: MOV     A,CR1
+L05D5: MOV     A,CR1		; capture bass detune value?
 L05D7: LXI     H,$FFA1
 L05DA: CALF    L0A11
 L05DC: NOP   				; negates potential RETS  
@@ -923,7 +968,7 @@ L05F3: LDAW    $95
 L05F5: OFFI    A,$80
 L05F7: JR      L0608
 L05F8: MOV     B,A
-L05F9: LDAW    $A2
+L05F9: LDAW    $A2				; $FFA2 -- dynamic sense value?
 L05FB: SLR     A
 L05FD: MOV     D,A
 L05FE: SUBNBW  $96
@@ -1056,7 +1101,7 @@ L0706: JR      L070B
 L0707: MVIW    $89,$17
 L070A: JR      L0715
 L070B: CALF    L0A3A
-L070D: STAW    $89
+L070D: STAW    $89					; LED related?
 L070F: OFFIW   $88,$10
 L0712: ORIW    $89,$08
 L0715: ANIW    $93,$10
@@ -1107,7 +1152,7 @@ L0766: OFFIW   $88,$10
 L0769: ORI     A,$08
 L076B: JR      L076E
 L076C: CALF    L0A3A
-L076E: STAW    $89
+L076E: STAW    $89					; LED related?
 L0770: RET     
 L0771: MOV     A,C
 L0772: STAW    $0C
@@ -1123,7 +1168,7 @@ L0780: JR      L0789
 L0781: MVI     A,$02
 L0783: ANIW    $93,$7F
 L0786: ORIW    $95,$80
-L0789: STAW    $89
+L0789: STAW    $89					; LED related?
 L078B: MVI     A,$00
 L078D: JR      L07A7
 L078E: BIT     1,$93
@@ -1137,7 +1182,7 @@ L079D: JR      L07A1
 L079E: MVI     A,$17
 L07A0: JR      L07A3
 L07A1: CALF    L0A0C
-L07A3: STAW    $89
+L07A3: STAW    $89					; LED related?
 L07A5: MVI     A,$02
 L07A7: STAW    $8A
 L07A9: RET     
@@ -1200,7 +1245,7 @@ L080E: LTI     A,$1B
 L0810: JR      L081C
 L0811: STAW    $95
 L0813: CALF    L0F24
-L0815: LDAW    $A2
+L0815: LDAW    $A2				; $FFA2 -- dynamic sense value?
 L0817: SLR     A
 L0819: STAW    $96
 L081B: RET     
@@ -1376,6 +1421,9 @@ L095C: EQI     B,$02
 L095F: JR      L0964
 L0960: CALF    L0E29
 L0962: JRE     L0981
+;
+;
+;
 L0964: EQI     B,$01
 L0967: JR      L0977
 L0968: BIT     5,$0B
@@ -1445,7 +1493,7 @@ L09DC: SUI     A,$0A
 L09DE: JR      L09E2
 L09DF: MVIW    $8A,$00
 L09E2: CALF    L0A0C
-L09E4: STAW    $89
+L09E4: STAW    $89					; LED related?
 L09E6: RET     
 L09E7: LXI     D,$FFCC
 L09EA: MVI     B,$06
@@ -1507,7 +1555,7 @@ L0A3A: ANI     A,$0F
 L0A3C: GTI     A,$09
 L0A3E: JR      L0A44
 L0A3F: SUI     A,$0A
-L0A41: MVIW    $8A,$44
+L0A41: MVIW    $8A,$44		; $FF8A -- LED related?
 L0A44: CALF    L0A0C
 L0A46: OFFIW   $88,$10
 L0A49: ORI     A,$08
@@ -1672,23 +1720,23 @@ L0B31: ORA     A,B
 L0B33: CALF    L0B36
 L0B35: RET
 ;
-; init related?
+; init MODULE related? -- sends info to MODULE over serial
 ;     
 L0B36: MOV     C,A
-L0B37: LDAW    $40			; something with MIDI/serial Tx buffer index?
+L0B37: LDAW    $40			; $FF40 -- load current serial Tx index?
 L0B39: MOV     L,A
 L0B3A: INR     A
-L0B3B: NEI     A,$70
-L0B3D: MVI     A,$42
-L0B3F: NEAW    $41			; infinite loop which can only be broken by interrupt -- something with MIDI/serial Tx buffer index?
+L0B3B: NEI     A,$70		; skip if index hasn't hit $FF70?
+L0B3D: MVI     A,$42		; otherwise roll over to $FF42 (start of serial Tx buffer?)
+L0B3F: NEAW    $41			; $FF41 -- infinite loop which can only be broken by interrupt -- compare to pending serial Tx index?
 L0B42: JR      L0B3F
 L0B43: MOV     B,A
-L0B44: MVI     H,$FF
+L0B44: MVI     H,$FF		; $FFxx
 L0B46: MOV     A,C
 L0B47: STAX    H
 L0B48: MOV     A,B
 L0B49: ORI     MKH,$06
-L0B4C: STAW    $40			; something with MIDI/serial Tx buffer index?
+L0B4C: STAW    $40			; $FF40 -- update current serial Tx index?
 L0B4E: ANI     MKH,$F9
 L0B51: RET
 ;
@@ -1697,7 +1745,7 @@ L0B51: RET
 L0B52: MOV     B,A
 L0B53: MVI     A,$11
 L0B55: MUL     B
-L0B57: LXI     B,$1800
+L0B57: LXI     B,$1800			; large offset
 L0B5A: DADD    EA,B
 L0B5C: DMOV    D,EA
 L0B5D: MVI     B,$10
@@ -2243,6 +2291,9 @@ L0EE7: ORIW    $88,$80
 L0EEA: JR      L0EF5
 L0EEB: ANIW    $88,$7F
 L0EEE: JR      L0EF5
+;
+;
+;
 L0EEF: MOV     A,EAH
 L0EF0: BIT     7,$88
 L0EF2: ORI     A,$04
@@ -2279,16 +2330,19 @@ L0F1C: MVI     B,$0A
 L0F1E: MUL     B
 L0F20: EADD    EA,C
 L0F22: MOV     A,EAL
-L0F23: RET     
-L0F24: LDAW    $89
-L0F26: STAW    $8A
+L0F23: RET
+;
+;
+;    
+L0F24: LDAW    $89					; $FF89 -- LED related?
+L0F26: STAW    $8A					; $FF8A -- LED related?
 L0F28: MOV     A,C
 L0F29: EQI     A,$00
 L0F2B: JR      L0F30
-L0F2C: NEIW    $89,$17
+L0F2C: NEIW    $89,$17				; $FF89 -- LED related?
 L0F2F: JR      L0F34
 L0F30: CALF    L0A0C
-L0F32: STAW    $89
+L0F32: STAW    $89					; $FF89 -- LED related?
 L0F34: RET
 ;
 ; some initialization probably
@@ -2697,7 +2751,7 @@ L1222: PUSH    B
 L1223: LTI     A,$64
 L1225: SUI     A,$64
 L1227: CALF    L0A4C
-L1229: SBCD    $FF89
+L1229: SBCD    $FF89			; LED related?
 L122D: POP     B
 L122E: POP     D
 L122F: MOV     A,D
@@ -2896,19 +2950,19 @@ L1380: JR      L1388
 ;
 L1381: LBCD    $FF97
 L1385: MVIW    $A7,$30
-L1388: SBCD    $FF89
+L1388: SBCD    $FF89		; LED related?
 L138C: LDAW    $D0
 L138E: CALF    L09FE
-L1390: MOV     A,CR0
+L1390: MOV     A,CR0		; capture master tune value?
 L1392: LXI     H,$FFA0
 L1395: CALF    L0A11
 L1397: LDAW    $D3			; can be skipped by RETS
 L1399: CALF    L09FE
-L139B: MOV     A,CR1
+L139B: MOV     A,CR1		; capture bass detune value?
 L139D: LXI     H,$FFA1
 L13A0: CALF    L0A11
-L13A2: MOV     A,CR2		; can be skipped by RETS
-L13A4: STAW    $A2
+L13A2: MOV     A,CR2		; can be skipped by RETS -- capture dynamic sense value?
+L13A4: STAW    $A2			; $FFA2 -- dynamic sense value?
 L13A6: LDAW    $CD
 L13A8: CALF    L09FE
 L13AA: BIT     7,$E7
@@ -3364,7 +3418,7 @@ L1697:
 L16A0:
 	LXI     B,$5711
 	SBCD    $FF97
-	LDAW    $A2
+	LDAW    $A2				; $FFA2 -- dynamic sense value?
 	SLR     A
 	MOV     C,A
 	LDAW    $E7
@@ -3442,7 +3496,8 @@ L1718:
 ;
 ; # SCALING DATA OF SOME SORT? HOW IS THIS LOADED OR REACHED?
 ;
-	DB $01,$02,$04,$08,$10,$20,$FE,$FD,$FB,$F7,$EF,$DF
+	DB $01,$02,$04,$08,$10,$20
+	DB $FE,$FD,$FB,$F7,$EF,$DF
 	
 L1724:
 ;
@@ -3455,7 +3510,9 @@ L1724:
 L172E:	
 	DB $FE,$3B,$FE,$3B,$BF,$3B,$FD,$3B,$7F,$3B,$FD,$3B,$FB,$3B,$DF,$3B
 	DB $FB,$3B,$DF,$3B,$F7,$3B,$DF,$3B,$F7,$3B,$EF,$3B,$FF,$3A,$EF,$3B
-	
+;
+; # TONE COLORS FOR MELODY, CHORD, AND BASS BLOCKS ARE PROBABLY IN HERE 
+;
 	DB $FF,$39,$6E,$F0,$E9,$E2,$1F,$D6,$18,$CA,$BA,$BE,$04,$B4
 	DB $E0,$A9,$52,$A0,$4F,$97,$CC,$8E,$C5,$86,$33,$7F,$0F,$78,$51,$71 
 	DB $EF,$6A,$EE,$64,$42,$5F,$E9,$59,$D9,$54,$15,$50,$95,$4B,$54,$47
