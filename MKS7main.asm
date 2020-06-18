@@ -79,15 +79,33 @@
 ;
 ; $0000~$1FFF = MAIN PROGRAM ROM (IC43)
 ; $2800       = ?
-; $3000       = ?
+; $3000       = ? some peripheral?
+; $3FFF       = ?
 ; $FF00~$FFFF = WORKING REGISTER RAM
 ;
 ; #################################
 ; # WORKING REGISTERS (IN CPU RAM # ($FF00~$FFFF)
 ; #################################
 ;
-; $FF00 = ?
-; $FF01 = ?
+; $FF00 = ? specifically initialized on startup
+; $FF01 = ? specifically initialized on startup
+; $FF02 = ? specifically initialized on startup
+; $FF03 = ? specifically initialized on startup
+; $FF04 = ?
+; $FF05 = ?
+; $FF06 = ?
+; $FF07 = ?
+; $FF08 = ?
+; $FF09 = ?
+; $FF0A = ?
+; $FF0B = something bit-tested, possibly MIDI related
+; $FF0C = ?
+; $FF0D = ?
+; $FF0E = current MIDI byte? or Status byte?
+; $FF0F = SysEx message length?
+; $FF10 = ? current index for something?
+; $FF11 = ? pending index for something?
+; $FF12 = starting address of some buffer?
 ; ..
 ; $FF40 = serial Tx current index?
 ; $FF41 = serial Tx pending index?
@@ -99,8 +117,22 @@
 ; $FF8C = LED state D?
 ; $FF8D = button read state A?
 ; $FF8E = button read state B?
+; $FF8F = starting address of some buffer?
 ; ..
+; $FFA0 = master tune value?
+; $FFA1 = bass detune value?
 ; $FFA2 = dynamic sense value?
+; ..
+; $FFA8 = starting address of some buffer?
+; ..
+; $FFBA = starting address of some buffer?
+; ..
+; $FFCC = starting address of some buffer?
+; ..
+; $FFD1 = ? related to peripheral at $2800?
+; $FFD2 = ?
+; $FFD3 = ?
+; $FFD4 = starting address of incoming SysEx buffer?
 ; ..
 ; $FFFE = ?
 ; $FFFF = ?
@@ -165,18 +197,18 @@ L0027: NOP
 L0028: EXA     
 L0029: EXX     
 L002A: OFFI    MKH,$04
-L002D: JR      L0033
+L002D: JR      L0033			; otherwise
 L002E: SKIT    FSR
-L0030: JMP     L027C
+L0030: JMP     L027C			; otherwise transmit info to MODULE
 L0033: SKNIT   ER
-L0035: JRE     L009D		; MIDI Rx related
-L0037: ORIW    $A5,$50
-L003A: MOV     A,RXB		; MIDI Rx related
+L0035: JRE     L009D			; otherwise do something with MIDI Rx
+L0037: ORIW    $A5,$50			; $FFA5
+L003A: MOV     A,RXB			; receive MIDI
 L003C: ONI     A,$80
-L003E: JRE     L00D1		; MIDI Rx related
+L003E: JRE     L00D1			; otherwise MIDI Rx related
 L0040: LTI     A,$F0
-L0042: JRE     L00AC		; MIDI Rx related
-L0044: ANIW    $87,$3F
+L0042: JRE     L00AC			; otherwise MIDI Rx related
+L0044: ANIW    $87,$3F			; $FF87
 L0047: MOV     E,A
 L0048: ANI     A,$F0
 L004A: EQI     A,$A0
@@ -186,46 +218,50 @@ L0050: MOV     B,A
 L0051: MOV     A,E
 L0052: ANI     A,$0F
 L0054: MVI     C,$00
-L0056: OFFIW   $0B,$10
-L0059: JR      L0061
-L005A: EQAW    $00
-L005D: JR      L0061
+L0056: OFFIW   $0B,$10			; $FF0B
+L0059: JR      L0061			; otherwise
+L005A: EQAW    $00				; $FF00
+L005D: JR      L0061			; otherwise
 L005E: ORI     C,$01
-L0061: EQAW    $01
-L0064: JR      L0068
+L0061: EQAW    $01				; $FF01
+L0064: JR      L0068			; otherwise
 L0065: ORI     C,$02
-L0068: EQAW    $02
-L006B: JR      L006F
+L0068: EQAW    $02				; $FF02
+L006B: JR      L006F			; otherwise
 L006C: ORI     C,$04
-L006F: EQAW    $03
-L0072: JR      L007A
+L006F: EQAW    $03				; $FF03
+L0072: JR      L007A			; otherwise
 L0073: EQI     B,$90
-L0076: JR      L007A
+L0076: JR      L007A			; otherwise
 L0077: ORI     C,$08
 L007A: MOV     A,C
 L007B: ORA     A,B
-L007D: STAW    $0E
+L007D: STAW    $0E				; $FF0E
 L007F: OFFI    C,$07
-L0082: JR      L0087
+L0082: JR      L0087			; otherwise
 L0083: ONI     A,$08
-L0085: JR      L009F
+L0085: JR      L009F			; otherwise
 L0086: JR      L0090
+;
+;
+;
 L0087: LTI     A,$A0
-L0089: JR      L0090
+L0089: JR      L0090			; otherwise
 L008A: MOV     C,A
-L008B: ANIW    $0B,$BF
+L008B: ANIW    $0B,$BF			; $FF0B
 L008E: CALF    L0A9F
+; fall-through or jumped to
 L0090: EQI     B,$C0
-L0093: MVI     A,$01
+L0093: MVI     A,$01			; otherwise
 L0095: MVI     A,$00
-L0097: STAW    $0F
-L0099: ORIW    $0B,$80
+L0097: STAW    $0F				; $FF0F -- SysEx message length?
+L0099: ORIW    $0B,$80			; $FF0B
 L009C: JR      L00A2
 ;
 ; # MIDI Rx
 ;
-L009D: MOV     A,RXB		; MIDI Rx, very likely
-L009F: ANIW    $0B,$7F		; something with MIDI related working register
+L009D: MOV     A,RXB			; MIDI Rx, very likely
+L009F: ANIW    $0B,$7F			; $FF0B -- something with MIDI related working register
 ; fall-through or shared routine to end interrupts
 L00A2: EXA     
 L00A3: EXX     
@@ -234,59 +270,59 @@ L00A5: RETI
 ;
 ; # MIDI System Real-Time Handling
 ;    
-L00A6: NEI     A,$FE		; skip next if MIDI code is not Active Sensing
-L00A8: ANIW    $A5,$7F		; otherwise do something about Active Sensing
+L00A6: NEI     A,$FE			; skip next if MIDI code is not Active Sensing
+L00A8: ANIW    $A5,$7F			; $FFA5 -- otherwise do something about Active Sensing
 L00AB: JR      L00A2
 ;
 ; # MIDI Rx related
 ;
-L00AC: LTI     A,$F8		; skip next if MIDI code is less than $F8 (ie not System Real-Time related)
-L00AE: JR      L00A6		; otherwise handle System Real-Time related
-L00AF: EQI     A,$F0		; skip next if MIDI SysEx Start code
-L00B1: JR      L00BC		; otherwise handle SysEx Start
-L00B2: ANIW    $87,$3F
-L00B5: ORIW    $87,$80
-L00B8: STAW    $0E
+L00AC: LTI     A,$F8			; skip next if MIDI code is less than $F8 (ie not System Real-Time related)
+L00AE: JR      L00A6			; otherwise handle System Real-Time related
+L00AF: EQI     A,$F0			; skip next if MIDI SysEx Start code
+L00B1: JR      L00BC			; otherwise handle SysEx Start
+L00B2: ANIW    $87,$3F			; $FF87
+L00B5: ORIW    $87,$80			; $FF87
+L00B8: STAW    $0E				; $FF0E
 L00BA: JRE     L0095
 ;
 ; # MIDI SysEx Start Handling
 ;
-L00BC: EQI     A,$F7		; skip next if MIDI SysEx End code
-L00BE: JR      L00CC		; otherwise process SysEx
-L00BF: BIT     7,$87
-L00C1: JR      L00CF
-L00C2: BIT     5,$87
-L00C4: JR      L00CC
-L00C5: EQIW    $0F,$12
-L00C8: JR      L00CC
-L00C9: ORIW    $87,$10
+L00BC: EQI     A,$F7			; skip next if MIDI SysEx End code
+L00BE: JR      L00CC			; otherwise process SysEx
+L00BF: BIT     7,$87			; $FF87
+L00C1: JR      L00CF			; otherwise
+L00C2: BIT     5,$87			; $FF87
+L00C4: JR      L00CC			; otherwise
+L00C5: EQIW    $0F,$12			; $FF0F -- SysEx message length?
+L00C8: JR      L00CC			; otherwise
+L00C9: ORIW    $87,$10			; $FF87
 ; fall-through or jumped to for SysEx
-L00CC: ANIW    $87,$3F
+L00CC: ANIW    $87,$3F			; clear bits 7 and 6 in $FF87 (reduce to 0~63)
 L00CF: JRE     L009F
 ;
 ; # test high-bit of received MIDI?
 ;
-L00D1: BIT     7,$0B
-L00D3: JRE     L00A2
+L00D1: BIT     7,$0B			; $FF0B
+L00D3: JRE     L00A2			; otherwise
 L00D5: MOV     C,A
-L00D6: OFFIW   $87,$80
-L00D9: JMP     L01DC
-L00DC: LTIW    $0E,$F0			; skip next if $FF0E is less than $F0 (ie not System Exclusive)
+L00D6: OFFIW   $87,$80			; $FF87
+L00D9: JMP     L01DC			; otherwise
+L00DC: LTIW    $0E,$F0			; $FF0E -- skip next if less than $F0 (ie not System Exclusive)
 L00DF: JRE     L009F			; otherwise assume SysEx, System Common, or System Real-Time
-L00E1: DCRW    $0F
-L00E3: JR      L0103
-L00E4: LTIW    $0E,$A0
-L00E7: JRE     L010E
-L00E9: MVIW    $0F,$01
-L00EC: BIT     3,$0E
-L00EE: JR      L00F5
+L00E1: DCRW    $0F				; $FF0F -- decrement SysEx message length?
+L00E3: JR      L0103			; otherwise
+L00E4: LTIW    $0E,$A0			; $FF0E -- check for Poly Aftertouch? [Ax]
+L00E7: JRE     L010E			; otherwise
+L00E9: MVIW    $0F,$01			; $FF0F -- SysEx message length?
+L00EC: BIT     3,$0E			; $FF0E
+L00EE: JR      L00F5			; otherwise
 L00EF: NEI     C,$00
-L00F2: JR      L00F5
+L00F2: JR      L00F5			; otherwise
 L00F3: CALF    L0A7E
-L00F5: ONIW    $0E,$07
-L00F8: JR      L00FF
-L00F9: OFFIW   $0B,$40
-L00FC: JR      L00FF
+L00F5: ONIW    $0E,$07			; $FF0E
+L00F8: JR      L00FF			; otherwise
+L00F9: OFFIW   $0B,$40			; $FF0B
+L00FC: JR      L00FF			; otherwise
 L00FD: CALF    L0A9F
 L00FF: EXA     
 L0100: EXX     
@@ -295,143 +331,167 @@ L0102: RETI
 ;
 ;
 ;    
-L0103: STAW    $0D
-L0105: LTIW    $0E,$A0
-L0108: JR      L00FF
-L0109: ONIW    $0E,$07
-L010C: JR      L00FF
+L0103: STAW    $0D				; $FF0D
+L0105: LTIW    $0E,$A0			; $FF0E
+L0108: JR      L00FF			; otherwise
+L0109: ONIW    $0E,$07			; $FF0E
+L010C: JR      L00FF			; otherwise
 L010D: JR      L00F9
-L010E: LTIW    $0E,$C0
-L0111: JRE     L0194
-L0113: LDAW    $0D
+;
+; # handle Poly Aftertouch or some other SysEx?
+;
+L010E: LTIW    $0E,$C0			; skip next if $FF0E is less then $C0
+L0111: JRE     L0194			; otherwise potentially a Program Change [Cx]?
+L0113: LDAW    $0D				; $FF0D
 L0115: EQI     A,$01
-L0117: JR      L0130
+L0117: JR      L0130			; otherwise
 L0118: MOV     A,C
 L0119: ORI     A,$80
-L011B: BIT     0,$0E
-L011D: JR      L0123
-L011E: BIT     2,$84
-L0120: JR      L0123
-L0121: STAW    $05
-L0123: BIT     1,$0E
-L0125: JR      L012B
-L0126: BIT     2,$83
-L0128: JR      L012B
-L0129: STAW    $08
-L012B: MVIW    $0F,$01
+L011B: BIT     0,$0E			; $FF0E
+L011D: JR      L0123			; otherwise
+L011E: BIT     2,$84			; $FF84
+L0120: JR      L0123			; otherwise
+L0121: STAW    $05				; $FF05
+L0123: BIT     1,$0E			; $FF0E
+L0125: JR      L012B			; otherwise
+L0126: BIT     2,$83			; $FF83
+L0128: JR      L012B			; otherwise
+L0129: STAW    $08				; $FF08
+L012B: MVIW    $0F,$01			; $FF0F -- SysEx message length?
 L012E: JRE     L00FF
+;
+;
+;
 L0130: EQI     A,$40
-L0132: JRE     L0156
-L0134: LDAW    $0E
+L0132: JRE     L0156			; otherwise
+L0134: LDAW    $0E				; $FF0E
 L0136: ANI     A,$03
 L0138: BIT     1,$83
-L013A: ANI     A,$01
+L013A: ANI     A,$				; otherwise
 L013C: BIT     1,$84
-L013E: ANI     A,$02
+L013E: ANI     A,$02			; otherwise
 L0140: ONI     A,$03
-L0142: JR      L012B
+L0142: JR      L012B			; otherwise
 L0143: EQI     C,$00
-L0146: JR      L014E
+L0146: JR      L014E			; otherwise
 L0147: ORI     A,$D0
 L0149: MOV     C,A
 L014A: CALF    L0A9F
 L014C: JRE     L012B
+;
+;
+;
 L014E: EQI     C,$7F
-L0151: JRE     L012B
+L0151: JRE     L012B			; otherwise
 L0153: ORI     A,$08
-L0155: JR      L0147
+L0155: JR      L0147			; otherwise
 L0156: NEI     A,$79
-L0158: JR      L0171
+L0158: JR      L0171			; otherwise
 L0159: GTI     A,$7A
-L015B: JR      L016F
+L015B: JR      L016F			; otherwise
 L015C: EQI     A,$7E
-L015E: JR      L0163
+L015E: JR      L0163			; otherwise
 L015F: ONI     C,$F0
-L0162: JR      L0167
+L0162: JR      L0167			; otherwise
 L0163: EQI     C,$00
-L0166: JR      L016F
-L0167: LDAW    $0E
+L0166: JR      L016F			; otherwise
+L0167: LDAW    $0E				; $FF0E
 L0169: ONI     A,$07
-L016B: JR      L016F
+L016B: JR      L016F			; otherwise
 L016C: MOV     C,A
 L016D: CALF    L0A9F
 L016F: JRE     L012B
+;
+;
+;
 L0171: BIT     1,$0E
-L0173: JR      L016F
+L0173: JR      L016F			; otherwise
 L0174: EQI     C,$00
-L0177: JR      L0181
+L0177: JR      L0181			; otherwise
 L0178: BIT     4,$0B
-L017A: JR      L016F
+L017A: JR      L016F			; otherwise
 L017B: MVI     C,$C1
-L017D: ANIW    $0B,$EF
+L017D: ANIW    $0B,$EF			; $FF0B
 L0180: JR      L018E
+;
+;
+;
 L0181: EQI     C,$7F
-L0184: JR      L016F
-L0185: OFFIW   $0B,$10
-L0188: JR      L017A
+L0184: JR      L016F			; otherwise
+L0185: OFFIW   $0B,$10			; $FF0B
+L0188: JR      L017A			; otherwise
 L0189: MVI     C,$C0
-L018B: ORIW    $0B,$10
+L018B: ORIW    $0B,$10			; $FF0B
 L018E: CALF    L0F79
 L0190: CALF    L0F83
 L0192: JRE     L016D
-L0194: LTIW    $0E,$E0
-L0197: JRE     L01C0
-L0199: OFFIW   $93,$04
-L019C: JR      L01BB
+;
+; # something SysEx?
+;
+L0194: LTIW    $0E,$E0			; skip next if $FF0E is less than $E0
+L0197: JRE     L01C0			; otherwise potentially handle Pitch Wheel [Ex] ?
+L0199: OFFIW   $93,$04			; $FF93
+L019C: JR      L01BB			; otherwise
 L019D: LTI     A,$64
-L019F: SUI     A,$64
+L019F: SUI     A,$64			; otherwise
 L01A1: ORI     A,$80
 L01A3: BIT     0,$0E
-L01A5: JR      L01AB
+L01A5: JR      L01AB			; otherwise
 L01A6: BIT     0,$84
-L01A8: JR      L01AB
-L01A9: STAW    $06
+L01A8: JR      L01AB			; otherwise
+L01A9: STAW    $06				; $FF06
 L01AB: BIT     1,$0E
-L01AD: JR      L01B3
+L01AD: JR      L01B3			; otherwise
 L01AE: BIT     0,$83
-L01B0: JR      L01B3
-L01B1: STAW    $09
+L01B0: JR      L01B3			; otherwise
+L01B1: STAW    $09				; $FF09
 L01B3: BIT     2,$0E
-L01B5: JR      L01BB
+L01B5: JR      L01BB			; otherwise
 L01B6: BIT     0,$85
-L01B8: JR      L01BB
-L01B9: STAW    $0A
-L01BB: MVIW    $0F,$00
+L01B8: JR      L01BB			; otherwise
+L01B9: STAW    $0A				; $FF0A
+L01BB: MVIW    $0F,$00			; $FF0F -- SysEx message length?
 L01BE: JRE     L012E
+;
+; # handle SysEx pitch wheel messages?
+;
 L01C0: MOV     A,C
 L01C1: MOV     EAH,A
-L01C2: LDAW    $0D
+L01C2: LDAW    $0D				; $FF0D
 L01C4: SLL     A
 L01C6: MOV     EAL,A
 L01C7: DSLL    EA
 L01C9: MOV     A,EAH
-L01CA: BIT     0,$0E
-L01CC: JR      L01D2
-L01CD: BIT     2,$84
-L01CF: JR      L01D2
-L01D0: STAW    $04
-L01D2: BIT     1,$0E
-L01D4: JR      L01DA
-L01D5: BIT     2,$83
-L01D7: JR      L01DA
-L01D8: STAW    $07
+L01CA: BIT     0,$0E			; $FF0E
+L01CC: JR      L01D2			; otherwise
+L01CD: BIT     2,$84			; $FF84
+L01CF: JR      L01D2			; otherwise
+L01D0: STAW    $04				; $FF04
+L01D2: BIT     1,$0E			; $FF0E
+L01D4: JR      L01DA			; otherwise
+L01D5: BIT     2,$83			; $FF83
+L01D7: JR      L01DA			; otherwise
+L01D8: STAW    $07				; $FF07
 L01DA: JRE     L016F
-L01DC: BIT     6,$87
-L01DE: JRE     L0211
-L01E0: BIT     5,$87
-L01E2: JR      L0200
-L01E3: LDAW    $0F
+;
+;
+;
+L01DC: BIT     6,$87			; $FF87
+L01DE: JRE     L0211			; otherwise
+L01E0: BIT     5,$87			; $FF87
+L01E2: JR      L0200			; otherwise
+L01E3: LDAW    $0F				; $FF0F -- load SysEx message length?
 L01E5: MOV     B,A
 L01E6: MOV     A,C
-L01E7: LXI     H,$FFD4
+L01E7: LXI     H,$FFD4			; buffer?
 L01EA: STAX    H+B
-L01EB: INRW    $0F
+L01EB: INRW    $0F				; $FF0F -- SysEx message length?
 L01ED: NOP 						; negate potential skip    
 L01EE: BIT     5,$87
-L01F0: JR      L01F8
-L01F1: EQIW    $0F,$12
-L01F4: JR      L01F8
-L01F5: ANIW    $0B,$7F
+L01F0: JR      L01F8			; otherwise
+L01F1: EQIW    $0F,$12			; $FF0F -- SysEx message length?
+L01F4: JR      L01F8			; otherwise
+L01F5: ANIW    $0B,$7F			; $FF0B
 L01F8: EXA     
 L01F9: EXX     
 L01FA: EI      
@@ -439,107 +499,132 @@ L01FB: RETI
 ;
 ; # do something with a working register and then abort SysEx?
 ;   
-L01FC: ANIW    $87,$3F
+L01FC: ANIW    $87,$3F			; $FF87
 L01FF: JR      L01F8			; jump to shared routine
 ;
 ;
 ;
 L0200: BIT     0,$0F
-L0202: JR      L020D
-L0203: LDAW    $0D
+L0202: JR      L020D			; otherwise
+L0203: LDAW    $0D				; $FF0D
 L0205: LTI     A,$12
-L0207: JR      L020F
+L0207: JR      L020F			; otherwise
 L0208: ORI     C,$80
 L020B: JRE     L01E5
-L020D: STAW    $0D
-L020F: JRE     L0275
-L0211: EQIW    $0F,$00
-L0214: JR      L0219
-L0215: EQI     A,$41			; skip next if accumulator equal to $41 (check SysEx for Roland manufacturer ID)
-L0217: JR      L01FC			; otherwise SysEx is invalid?
-L0218: JR      L0228			; jump when SysEx is good?
 ;
 ;
 ;
-L0219: EQIW    $0F,$01
-L021C: JR      L022E
-L021D: EQI     A,$30
-L021F: NEI     A,$31
-L0221: JR      L022A
-L0222: EQI     A,$32
-L0224: JR      L0217
-L0225: ANIW    $87,$DF
-; fall-through, or jumped to -- process valid SysEx?
-L0228: JRE     L0275
+L020D: STAW    $0D				; $FF0D
+L020F: JRE     L0275			; process valid SysEx?
+;
+; # something SysEx related
+;
+L0211:
+	EQIW    $0F,$00				; skip next if $FF0F is zero (SysEx message length?)
+	JR      L0219				; otherwise
+	EQI     A,$41				; skip next if accumulator equal to $41 (check SysEx for Roland manufacturer ID)
+L0217:
+	JR      L01FC				; otherwise SysEx is invalid?
+	JR      L0228				; jump when SysEx is good?
+;
+; # something SysEx related
+;
+L0219:
+	EQIW    $0F,$01				; skip next if $FF0F is 1 (SysEx message length?)
+	JR      L022E				; otherwise
+	EQI     A,$30				; skip next if equal to $30 (operation code is tone change mode?)
+	NEI     A,$31				; skip next if not equal to $31 (operation code is ??? -- undocumented!?)
+	JR      L022A				; otherwise operation code is $30 or $31 so jump
+	EQI     A,$32				; skip next if equal to $32 (operation code is tone parameter change?)
+	JR      L0217				; otherwise SysEx is invalid?
+	ANIW    $87,$DF				; $FF87
+; fall-through, or jumped to
+L0228:
+	JRE     L0275				; process valid SysEx?
+;
+; # handle SysEx operation code
+;
+L022A: ORIW    $87,$20			; $FF87
+L022D: JR      L0228			; jump to shared SysEx processing routine
 ;
 ;
 ;
-L022A: ORIW    $87,$20
-L022D: JR      L0228
-L022E: EQIW    $0F,$02
-L0231: JRE     L0265
-L0233: ANIW    $87,$F1
-L0236: OFFIW   $0B,$10
-L0239: JR      L0244
-L023A: EQAW    $00
-L023D: JR      L0244
-L023E: BIT     3,$84
-L0240: JR      L0244
-L0241: ORIW    $87,$04
-L0244: EQAW    $01
-L0247: JR      L024E
-L0248: BIT     3,$83
-L024A: JR      L024E
-L024B: ORIW    $87,$08
-L024E: EQAW    $02
-L0251: JR      L0258
-L0252: BIT     3,$85
-L0254: JR      L0258
-L0255: ORIW    $87,$02
-L0258: ONIW    $87,$0E
-L025B: JRE     L01FC
-L025D: OFFIW   $87,$20
-L0260: JR      L0275
-L0261: ORIW    $87,$41
+L022E: EQIW    $0F,$02			; skip next if $FF0F (SysEx message length?) is 2 (unit #?)
+L0231: JRE     L0265			; otherwise do something with program change number?
+L0233: ANIW    $87,$F1			; $FF87
+L0236: OFFIW   $0B,$10			; $FF0B
+L0239: JR      L0244			; otherwise
+L023A: EQAW    $00				; $FF00
+L023D: JR      L0244			; otherwise
+L023E: BIT     3,$84			; $FF84
+L0240: JR      L0244			; otherwise
+L0241: ORIW    $87,$04			; $FF87
+L0244: EQAW    $01				; $FF01
+L0247: JR      L024E			; otherwise
+L0248: BIT     3,$83			; $FF83
+L024A: JR      L024E			; otherwise
+L024B: ORIW    $87,$08			; $FF87
+L024E: EQAW    $02				; $FF02
+L0251: JR      L0258			; otherwise
+L0252: BIT     3,$85			; $FF85
+L0254: JR      L0258			; otherwise
+L0255: ORIW    $87,$02			; $FF87
+L0258: ONIW    $87,$0E			; $FF87
+L025B: JRE     L01FC			; otherwise
+L025D: OFFIW   $87,$20			; $FF87
+L0260: JR      L0275			; otherwise
+L0261: ORIW    $87,$41			; $FF87
 L0264: JR      L0271
-L0265: ORIW    $87,$40
-L0268: ANIW    $87,$FE
-L026B: LTI     A,$64
-L026D: SUI     A,$64
-L026F: STAW    $E6
-L0271: MVIW    $0F,$00
-L0274: JR      L0278
 ;
-; # something MIDI related
+; # seems like program change SysEx handling
+;
+L0265:
+	ORIW    $87,$40				; set bit 6 in $FF87
+	ANIW    $87,$FE				; clear bit 0 in $FF87
+	LTI     A,$64				; skip next if less than 100
+	SUI     A,$64				; otherwise subtract 100 (because program change is forced to 0-99?)
+	STAW    $E6					; $FFE6
+; fall-through or jumped to
+L0271:
+	MVIW    $0F,$00				; $FF0F -- zero out SysEx message length?
+	JR      L0278				; jump to shared interrupt ending
+;
+; # process valid SysEx?
 ;
 L0275:
-	INRW    $0F
-	NOP 							; negates potential skip 
-; fall-through or shared ending   
+	INRW    $0F					; $FF0F -- increment SysEx message length?
+	NOP 						; negates potential skip 
+; fall-through or shared interrupt ending   
 L0278: 
 	EXA     
 	EXX     
 	EI      
 	RETI
 ;
-; # TRANSMIT INFO TO MODULE CPU? -- send serial from MAIN to MODULE
+; # POTENTIALLY TRANSMIT INFO TO MODULE CPU? -- send serial from MAIN to MODULE
 ;   
-L027C: LDAW    $41					; something with MIDI/serial Tx buffer index?
-L027E: EQAW    $40					; something with MIDI/serial Tx buffer index?
-L0281: JR      L0286
-L0282: ORI     MKH,$04
-L0285: JR      L0278
-L0286: MVI     H,$FF				; $FFxx
-L0288: MOV     L,A
-L0289: LDAX    H+					; loads from $FFxx range
-L028A: SKIT    FST					; skip next if FST interrupt (serial transmit) is set -- actually clears interrupt here
-L028C: NOP     						; negate potential skip
-L028D: MOV     TXB,A				; send data to serial output (from MAIN to MODULE)
-L028F: MOV     A,L
-L0290: LTI     A,$70
-L0292: MVI     A,$42
-L0294: STAW    $41					; something with MIDI/serial Tx buffer index?
-L0296: JR      L0285
+L027C: 
+	LDAW    $41					; $FF41 -- something with MIDI/serial Tx buffer index?
+	EQAW    $40					; $FF40 -- something with MIDI/serial Tx buffer index?
+	JR      L0286				; otherwise actually transmit to MODULE
+	ORI     MKH,$04
+L0285:
+	JR      L0278				; jump to shared interrupt ending
+;
+; # TRANSMIT INFO TO MODULE CPU -- send serial from MAIN to MODULE
+;
+L0286:
+	MVI     H,$FF				; $FFxx
+	MOV     L,A
+	LDAX    H+					; loads from $FFxx range
+	SKIT    FST					; skip next if FST interrupt (serial transmit) is set -- actually clears interrupt here
+	NOP     					; negate potential skip
+	MOV     TXB,A				; send data to serial output (from MAIN to MODULE)
+	MOV     A,L
+	LTI     A,$70
+	MVI     A,$42				; otherwise
+	STAW    $41					; $FF41 -- something with MIDI/serial Tx buffer index?
+	JR      L0285				; double-jump to shared interrupt ending
 ;
 ; # LED refresh and button switch reading driven by timer interrupt
 ;
@@ -553,24 +638,24 @@ L02A1: DSLL    EA
 L02A3: DSLL    EA
 L02A5: DMOV    B,EA
 L02A6: LXI     H,$FF89
-L02A9: MVI     PB,$00		; clear LED status?
-L02AC: MOV     PF,A			; reset chip select + addressing
-L02AE: LDAX    H+B			; $FF89/FF8A/FF8B/FF8C probably, as LED status must be held in at least four banks
-L02AF: MOV     PB,A			; update LED status?
-L02B1: MOV     A,PA			; read button switches?
+L02A9: MVI     PB,$00			; clear LED status?
+L02AC: MOV     PF,A				; reset chip select + addressing
+L02AE: LDAX    H+B				; $FF89/FF8A/FF8B/FF8C probably, as LED status must be held in at least four banks
+L02AF: MOV     PB,A				; update LED status?
+L02B1: MOV     A,PA				; read button switches?
 L02B3: ANI     A,$1F
-L02B5: STAW    $8D			; $FF8D -- button read state A?
+L02B5: STAW    $8D				; $FF8D -- update button read state A?
 L02B7: MOV     A,B
-L02B8: STAW    $8E			; $FF8E -- button read state B?
-L02BA: BIT     7,$A5
-L02BC: DCRW    $A5
-L02BE: DCRW    $A7
-L02C0: JR      L02C8
-L02C1: NEIW    $94,$00
-L02C4: JR      L02C8
-L02C5: DCRW    $94
-L02C7: NOP   				; negate potential skip  
-L02C8: JRE     L0278
+L02B8: STAW    $8E				; $FF8E -- update button read state B?
+L02BA: BIT     7,$A5			; $FFA5
+L02BC: DCRW    $A5				; otherwise decrement $FFA5
+L02BE: DCRW    $A7				; decrement $FFA7
+L02C0: JR      L02C8			; otherwise
+L02C1: NEIW    $94,$00			; $FF94
+L02C4: JR      L02C8			; otherwise
+L02C5: DCRW    $94				; $FF94
+L02C7: NOP   					; negate potential skip  
+L02C8: JRE     L0278			; jump to shared interrupt ending
 ;
 ; # MAIN INITIALIZATION ON CPU BOOT
 ; # memory mapping, port and timer setup, etc.
@@ -591,266 +676,290 @@ L02E3: MVI     A,$00
 L02E5: LXI     H,$FF00			; next four lines initialize $FF00~$FFFF (set working registers to all zero)
 L02E8: STAX    H+
 L02E9: EQI     L,$00
-L02EC: JR      L02E8
+L02EC: JR      L02E8			; otherwise
 L02ED: MOV     MC,A				; Port C mode
 L02EF: MOV     MB,A				; Port B mode
 L02F1: MOV     MF,A				; Port F mode
 L02F3: MOV     PF,A
 L02F5: MOV     PB,A
 L02F7: MOV     ETMM,A
-L02F9: MVIW    $00,$00
-L02FC: MVIW    $01,$02
-L02FF: MVIW    $02,$01
-L0302: MVIW    $03,$09
+L02F9: MVIW    $00,$00			; $FF00 set to 0
+L02FC: MVIW    $01,$02			; $FF01 set to 2
+L02FF: MVIW    $02,$01			; $FF02 set to 1
+L0302: MVIW    $03,$09			; $FF03 set to 9
 L0305: MVI     TMM,$3F
 L0308: MVI     A,$1F
 L030A: MOV     MA,A				; Port A mode
 L030C: MVI     A,$96
 L030E: MOV     TM1,A
 L0310: MVI     A,$40
-L0312: STAW    $B9
-L0314: STAW    $CB
-L0316: STAW    $70
+L0312: STAW    $B9				; $FFB9
+L0314: STAW    $CB				; $FFCB
+L0316: STAW    $70				; $FF70
 L0318: MVI     A,$0F
-L031A: STAW    $83
-L031C: STAW    $84
-L031E: STAW    $85
-L0320: MVIW    $06,$80
-L0323: MVIW    $09,$80
-L0326: MVIW    $0A,$80
-L0329: MVI     A,$42
-L032B: STAW    $40					; something with MIDI/serial Tx buffer index?
-L032D: STAW    $41					; something with MIDI/serial Tx buffer index?
-L032F: MVI     A,$12
-L0331: STAW    $10
-L0333: STAW    $11
+L031A: STAW    $83				; $FF83
+L031C: STAW    $84				; $FF84
+L031E: STAW    $85				; $FF85
+L0320: MVIW    $06,$80			; $FF06
+L0323: MVIW    $09,$80			; $FF09
+L0326: MVIW    $0A,$80			; $FF0A
+L0329: MVI     A,$42			; probably because $FF42 is starting address of a related buffer
+L032B: STAW    $40				; $FF40 -- something with MIDI/serial Tx buffer index?
+L032D: STAW    $41				; $FF41 -- something with MIDI/serial Tx buffer index?
+L032F: MVI     A,$12			; probably because $FF12 is starting address of a related buffer
+L0331: STAW    $10				; $FF10
+L0333: STAW    $11				; $FF11
 L0335: MVI     A,$22
-L0337: STAW    $20
-L0339: STAW    $21
-L033B: CALF    L0A69				; initialization
+L0337: STAW    $20				; $FF20
+L0339: STAW    $21				; $FF21
+L033B: CALF    L0A69			; initialization
 L033D: MOV     ($3FFF),A
 L0341: MVI     PC,$0C
-L0344: MVIW    $A5,$80
-L0347: MVIW    $E9,$00
-L034A: ANIW    $83,$7F
+L0344: MVIW    $A5,$80			; $FFA5
+L0347: MVIW    $E9,$00			; $FFE9
+L034A: ANIW    $83,$7F			; $FF83
 L034D: LXI     B,$0FFF
 L0350: MVI     A,$01
 L0352: DIV     A
 L0354: DCR     C
-L0355: JR      L0350
+L0355: JR      L0350			; otherwise
 L0356: DCR     B
-L0357: JR      L0350
+L0357: JR      L0350			; otherwise
 L0358: ANI     MKL,$FB
 L035B: ANI     MKH,$F9
-L035E: MOV     A,PA			; read some state from port A (button switches)
-L0360: OFFI    A,$01		; skip next if button number 3 is not held
-L0362: JMP     L1344		; jump to TEST MODE when button No. 3 is held, probably
-L0365: OFFI    A,$08		; skip next if not ? bass waveform select ?
-L0367: JMP     L1000		; unknown, but probably something important with engineer, test mode, or similar (button held at power-on)
+L035E: MOV     A,PA				; read some state from port A (button switches)
+L0360: OFFI    A,$01			; skip next if button number 3 is not held
+L0362: JMP     L1344			; otherwise jump to TEST MODE when button No. 3 (probably) is held
+L0365: OFFI    A,$08			; skip next if not ? bass waveform select ?
+L0367: JMP     L1000			; otherwise do something important with engineer, test mode, or similar (button held at power-on)
 ; fall-through or jumped to by L1008
 L036A: EI      
 L036B: MVI     A,$80
-L036D: CALF    L0E92		; init?
-L036F: CALF    L0F79		; init?
-L0371: CALF    L0F83		; init?
-L0373: CALF    L0F35		; init?
-L0375: MOV     A,CR2		; capture dynamic sense value?
-L0377: STAW    $A2			; $FFA2 -- dynamic sense value?
-L0379: ORI     PC,$08
+L036D: CALF    L0E92			; init?
+L036F: CALF    L0F79			; init?
+L0371: CALF    L0F83			; init?
+L0373: CALF    L0F35			; init?
+L0375: MOV     A,CR2			; capture dynamic sense value?
+L0377: STAW    $A2				; $FFA2 -- dynamic sense value?
+L0379: ORI     PC,$08			; set bit 3 in Port C -- bass S/H DMUX inhibit
 L037C: ANI     PC,$8F
-L037F: LDAW    $D1
+L037F: LDAW    $D1				; $FFD1
 L0381: MOV     ($2800),A
 L0385: ANI     PC,$F7
 L0388: CALF    L0B94
 L038A: CALF    L0EA7
-L038C: LDAW    $E9
+L038C: LDAW    $E9				; $FFE9
 L038E: ONIW    $93,$3E
-L0391: STAW    $8B
-L0393: LDAW    $D2
+L0391: STAW    $8B				; otherwise update $FF8B
+L0393: LDAW    $D2				; $FFD2
 L0395: CALF    L09FE
-L0397: BIT     7,$08
-L0399: JR      L03A8
-L039A: ANIW    $08,$7F
-L039D: LDAW    $08
+L0397: BIT     7,$08			; $FF08
+L0399: JR      L03A8			; otherwise
+L039A: ANIW    $08,$7F			; $FF08
+L039D: LDAW    $08				; $FF08
 L039F: MOV     D,A
 L03A0: MVI     A,$D4
 L03A2: CALF    L0B88
-L03A4: BIT     4,$0B
-L03A6: JR      L03B0
+L03A4: BIT     4,$0B			; $FF0B
+L03A6: JR      L03B0			; otherwise
 L03A7: JR      L03BD
-L03A8: MOV     A,CR0		; capture master tune value?
+;
+;
+;
+L03A8: MOV     A,CR0			; capture master tune value?
 L03AA: LXI     H,$FFA0
-L03AD: CALF    L0A11
-L03AF: NOP     				; negates potential RETS
-L03B0: BIT     7,$05
-L03B2: JR      L03C1
-L03B3: ANIW    $05,$7F
-L03B6: OFFIW   $0B,$10
-L03B9: JR      L03C1
-L03BA: LDAW    $05
+L03AD: CALF    L0A11			; process A/D value
+L03AF: NOP     					; negates potential RETS
+L03B0: BIT     7,$05			; $FF05
+L03B2: JR      L03C1			; otherwise
+L03B3: ANIW    $05,$7F			; $FF05
+L03B6: OFFIW   $0B,$10			; $FF0B
+L03B9: JR      L03C1			; otherwise
+L03BA: LDAW    $05				; $FF05
 L03BC: MOV     D,A
 L03BD: MVI     A,$B4
 L03BF: CALF    L0B88
-L03C1: LDAW    $07
-L03C3: NEAW    $9E
-L03C6: JRE     L03EE
-L03C8: STAW    $9E
-L03CA: BIT     4,$0B
-L03CC: JR      L03E0
-L03CD: STAW    $9D
+L03C1: LDAW    $07				; $FF07
+L03C3: NEAW    $9E				; $FF9E
+L03C6: JRE     L03EE			; otherwise
+L03C8: STAW    $9E				; $FF9E
+L03CA: BIT     4,$0B			; $FF0B
+L03CC: JR      L03E0			; otherwise
+L03CD: STAW    $9D				; $FF9D
 L03CF: CALF    L0F0F
-L03D1: JR      L03D9		; can be skipped by RETS
+L03D1: JR      L03D9			; can be skipped by RETS
 L03D2: MOV     D,A
 L03D3: MVI     A,$D2
 L03D5: CALF    L0B88
 L03D7: JRE     L03FE
+;
+;
+;
 L03D9: MOV     D,A
 L03DA: MVI     A,$D3
 L03DC: CALF    L0B88
 L03DE: JRE     L0404
+;
+;
+;
 L03E0: CALF    L0F0F
 L03E2: JR      L03E9		; can be skipped by RETS
 L03E3: MOV     D,A
 L03E4: MVI     A,$D2
 L03E6: CALF    L0B88
 L03E8: JR      L03EE
+;
+;
+;
 L03E9: MOV     D,A
 L03EA: MVI     A,$D3
 L03EC: CALF    L0B88
-L03EE: LDAW    $04
-L03F0: NEAW    $9D
-L03F3: JR      L0408
-L03F4: OFFIW   $0B,$10
-L03F7: JR      L0408
-L03F8: STAW    $9D
+L03EE: LDAW    $04			; $FF04
+L03F0: NEAW    $9D			; $FF9D
+L03F3: JR      L0408		; otherwise
+L03F4: OFFIW   $0B,$10		; $FF0B
+L03F7: JR      L0408		; otherwise
+L03F8: STAW    $9D			; $FF9D
 L03FA: CALF    L0F0F
 L03FC: JR      L0403		; can be skipped by RETS
 L03FD: MOV     D,A
 L03FE: MVI     A,$B2
 L0400: CALF    L0B88
 L0402: JR      L0408
+;
+;
+;
 L0403: MOV     D,A
 L0404: MVI     A,$B3
 L0406: CALF    L0B88
-L0408: LDAW    $D0
+L0408: LDAW    $D0			; $FFD0
 L040A: CALF    L09FE
-L040C: BIT     7,$0A
-L040E: JRE     L0431
-L0410: ANIW    $0A,$7F
-L0413: LDAW    $0A
+L040C: BIT     7,$0A		; $FF0A
+L040E: JRE     L0431		; otherwise
+L0410: ANIW    $0A,$7F		; $FF0A
+L0413: LDAW    $0A			; $FF0A
 L0415: ANI     A,$7F
-L0417: GTI     A,$13
-L0419: JR      L041D
-L041A: SUI     A,$14
-L041C: JR      L0417
+L0417: GTI     A,$13		; skip next if accumulator is greater than 19
+L0419: JR      L041D		; otherwise value is 0~19, so jump
+L041A: SUI     A,$14		; subtract 20
+L041C: JR      L0417		; loop until value is between 0~19
+;
+; # unknown -- accumulator must be 0~19 to enter this routine
+;
 L041D: CALF    L0F50
-L041F: ORIW    $88,$40
-L0422: MVIW    $72,$04
+L041F: ORIW    $88,$40		; $FF88
+L0422: MVIW    $72,$04		; $FF72
 L0425: MVI     B,$09
 L0427: MUL     B
-L0429: LXI     B,$1F3D
+L0429: LXI     B,$1F3D		; an offset
 L042C: DADD    EA,B
 L042E: DMOV    H,EA
 L042F: CALF    L09E7
-L0431: BIT     7,$09
-L0433: JRE     L0459
+L0431: BIT     7,$09		; $FF09
+L0433: JRE     L0459		; otherwise
 L0435: CALF    L0F65
-L0437: ANIW    $09,$7F
-L043A: LDAW    $09
+L0437: ANIW    $09,$7F		; $FF09
+L043A: LDAW    $09			; $FF09
 L043C: CALF    L0F57
-L043E: ORIW    $88,$40
-L0441: MVIW    $72,$01
+L043E: ORIW    $88,$40		; $FF88
+L0441: MVIW    $72,$01		; $FF72
 L0444: LXI     H,$FFBA
 L0447: CALF    L0B52
 L0449: LXI     D,$FFBA
 L044C: CALF    L0B66
-L044E: BIT     5,$0B
-L0450: JR      L0459
-L0451: MVIW    $72,$03
+L044E: BIT     5,$0B		; $FF0B
+L0450: JR      L0459		; otherwise
+L0451: MVIW    $72,$03		; $FF72
 L0454: LXI     D,$FFBA
 L0457: CALF    L0B64
-L0459: BIT     7,$06
-L045B: JR      L0479
+L0459: BIT     7,$06		; $FF06
+L045B: JR      L0479		; otherwise
 L045C: CALF    L0F70
-L045E: ANIW    $06,$7F
-L0461: LDAW    $06
+L045E: ANIW    $06,$7F		; $FF06
+L0461: LDAW    $06			; $FF06
 L0463: CALF    L0F5E
-L0465: ORIW    $88,$40
-L0468: MVIW    $72,$02
+L0465: ORIW    $88,$40		; $FF88
+L0468: MVIW    $72,$02		; $FF72
 L046B: LXI     H,$FFA8
 L046E: CALF    L0B52
-L0470: OFFIW   $0B,$10
-L0473: JR      L0479
+L0470: OFFIW   $0B,$10		; $FF0B
+L0473: JR      L0479		; otherwise
 L0474: LXI     D,$FFA8
 L0477: CALF    L0B64
-L0479: LDAW    $D3
+L0479: LDAW    $D3			; $FFD3
 L047B: CALF    L09FE
-L047D: BIT     4,$87
-L047F: JRE     L04C4
-L0481: ANIW    $87,$EF
-L0484: BIT     3,$87
-L0486: JR      L04A2
-L0487: LDAW    $E6
+L047D: BIT     4,$87		; $FF87
+L047F: JRE     L04C4		; otherwise
+L0481: ANIW    $87,$EF		; $FF87
+L0484: BIT     3,$87		; $FF87
+L0486: JR      L04A2		; otherwise
+L0487: LDAW    $E6			; $FFE6
 L0489: CALF    L0F57
 L048B: CALL    L1205
 L048E: LXI     H,$FFBA
 L0491: CALL    L1190
 L0494: LXI     D,$FFBA
 L0497: CALF    L0B66
-L0499: BIT     5,$0B
-L049B: JR      L04A2
+L0499: BIT     5,$0B		; $FF0B
+L049B: JR      L04A2		; otherwise
 L049C: LXI     D,$FFBA
 L049F: CALF    L0B64
 L04A1: JR      L04B7
-L04A2: BIT     2,$87
-L04A4: JR      L04B7
-L04A5: LDAW    $E6
+;
+;
+;
+L04A2: BIT     2,$87		; $FF87
+L04A4: JR      L04B7		; otherwise
+L04A5: LDAW    $E6			; $FFE6
 L04A7: CALF    L0F5E
 L04A9: CALL    L11F8
 L04AC: LXI     H,$FFA8
 L04AF: CALL    L1190
 L04B2: LXI     D,$FFA8
 L04B5: CALF    L0B64
-L04B7: BIT     1,$87
-L04B9: JR      L04C4
-L04BA: LDAW    $E6
+L04B7: BIT     1,$87		; $FF87
+L04B9: JR      L04C4		; otherwise
+L04BA: LDAW    $E6			; $FFE6
 L04BC: CALF    L0F50
 L04BE: CALL    L1214
 L04C1: CALL    L100B
-L04C4: LDAW    $87
-L04C6: STAW    $E8
+L04C4: LDAW    $87			; $FF87
+L04C6: STAW    $E8			; $FFE8
 L04C8: ONI     A,$01
-L04CA: JRE     L0503
+L04CA: JRE     L0503		; otherwise
 L04CC: CALL    L1178
-L04CF: JRE     L04FA			; can be skipped by RETS
-L04D1: BIT     2,$87
-L04D3: JR      L04DF
+L04CF: JRE     L04FA		; can be skipped by RETS
+L04D1: BIT     2,$87		; $FF87
+L04D3: JR      L04DF		; otherwise
 L04D4: MVI     C,$A0
 L04D6: LXI     H,$FFA8
 L04D9: CALL    L10F8
 L04DC: CALL    L11F8
-L04DF: BIT     3,$87
-L04E1: JR      L04ED
+L04DF: BIT     3,$87		; $FF87
+L04E1: JR      L04ED		; otherwise
 L04E2: MVI     C,$C0
 L04E4: LXI     H,$FFBA
 L04E7: CALL    L10F8
 L04EA: CALL    L1205
-L04ED: BIT     1,$87
-L04EF: JR      L0503
-L04F0: LDAW    $E7
+L04ED: BIT     1,$87		; $FF87
+L04EF: JR      L0503		; otherwise
+L04F0: LDAW    $E7			; $FFE7
 L04F2: MOV     D,A
 L04F3: CALL    L105A
 L04F6: CALL    L1214
 L04F9: JR      L0503
-L04FA: OFFIW   $87,$80
-L04FD: JR      L0503
-L04FE: BIT     7,$E8
-L0500: ANIW    $87,$FE
-L0503: LDAW    $CD
+;
+;
+;
+L04FA: OFFIW   $87,$80		; $FF87
+L04FD: JR      L0503		; otherwise
+L04FE: BIT     7,$E8		; $FFE8
+L0500: ANIW    $87,$FE		; $FF87
+L0503: LDAW    $CD			; $FFCD
 L0505: CALF    L09FE
 L0507: CALF    L0B94
 L0509: CALF    L0EA7
-L050B: LDAW    $9F
+L050B: LDAW    $9F			; $FF9F
 L050D: CALF    L09FE
 L050F: LBCD    $FF8D
 L0513: LXI     H,$FF8F
@@ -859,21 +968,24 @@ L0517: MOV     D,A
 L0518: MOV     A,C
 L0519: XRA     D,A
 L051B: EQI     D,$00
-L051E: JRE     L060B
+L051E: JRE     L060B		; otherwise
 L0520: MOV     A,CR2		; capture dynamic sense value?
-L0522: ONIW    $93,$3E
-L0525: JR      L052A
+L0522: ONIW    $93,$3E		; $FF93
+L0525: JR      L052A		; otherwise
 L0526: STAW    $A2			; $FFA2 -- dynamic sense value?
 L0528: JRE     L0551
-L052A: BIT     0,$93
-L052C: JR      L0547
-L052D: LXI     H,$FFA2
-L0530: CALF    L0A11
+;
+;
+;
+L052A: BIT     0,$93		; $FF93
+L052C: JR      L0547		; otherwise
+L052D: LXI     H,$FFA2		; dynamic sense value related?
+L0530: CALF    L0A11		; process A/D value
 L0532: JR      L0551		; can be skipped by RETS
-L0533: OFFIW   $8C,$04
-L0536: JR      L053D
-L0537: OFFIW   $8C,$01
-L053A: JR      L053F
+L0533: OFFIW   $8C,$04		; $FF8C
+L0536: JR      L053D		; otherwise
+L0537: OFFIW   $8C,$01		; $FF8C
+L053A: JR      L053F		; otherwise
 L053B: MVI     L,$B9
 L053D: MVI     L,$70
 L053F: MVI     L,$CB
@@ -881,160 +993,196 @@ L0541: MVI     H,$FF
 L0543: SLR     A
 L0545: STAX    H
 L0546: JR      L0551
-L0547: SUBNBW  $A2
+;
+;
+;
+L0547: SUBNBW  $A2			; $FFA2
 L054A: NEGA    
 L054C: LTI     A,$10
-L054E: ORIW    $93,$01
-L0551: LDAW    $A4
+L054E: ORIW    $93,$01		; $FF93
+L0551: LDAW    $A4			; $FFA4
 L0553: CALF    L09FE
-L0555: LDAW    $E9
-L0557: ONIW    $93,$3E
-L055A: STAW    $8B
-L055C: DCRW    $86
-L055E: JR      L0562
-L055F: ANIW    $E9,$F7
-L0562: BIT     6,$93
-L0564: JR      L0573
-L0565: EQIW    $94,$00
-L0568: JR      L0573
-L0569: ANIW    $93,$3F
-L056C: OFFIW   $93,$3C
-L056F: JRE     L05D5
+L0555: LDAW    $E9			; $FFE9
+L0557: ONIW    $93,$3E		; $FF93
+L055A: STAW    $8B			; otherwise update $FF8B
+L055C: DCRW    $86			; $FF86
+L055E: JR      L0562		; otherwise
+L055F: ANIW    $E9,$F7		; $FFE9
+L0562: BIT     6,$93		; $FF93
+L0564: JR      L0573		; otherwise
+L0565: EQIW    $94,$00		; $FF94
+L0568: JR      L0573		; otherwise
+L0569: ANIW    $93,$3F		; $FF93
+L056C: OFFIW   $93,$3C		; $FF93
+L056F: JRE     L05D5		; otherwise
 L0571: JRE     L05BA
-L0573: ONIW    $93,$0E
-L0576: JR      L0591
-L0577: BIT     5,$93
-L0579: EQIW    $A7,$FF
-L057C: JR      L0591
+;
+;
+;
+L0573: ONIW    $93,$0E		; $FF93
+L0576: JR      L0591		; otherwise
+L0577: BIT     5,$93		; $FF93
+L0579: EQIW    $A7,$FF		; $FFA7
+L057C: JR      L0591		; otherwise
 L057D: LXI     H,$FF8B
-L0580: ONIW    $93,$0A
-L0583: INX     H
+L0580: ONIW    $93,$0A		; $FF93
+L0583: INX     H			; otherwise
 L0584: LDAX    H
 L0585: ONI     A,$0F
-L0587: JR      L058B
+L0587: JR      L058B		; otherwise
 L0588: MVI     A,$00
 L058A: JR      L058D
-L058B: LDAW    $A6
+;
+;
+;
+L058B: LDAW    $A6			; $FFA6
 L058D: STAX    H
-L058E: MVIW    $A7,$30
-L0591: BIT     6,$88
-L0593: JR      L0597
-L0594: OFFIW   $93,$7E
-L0597: JRE     L05D5
-L0599: OFFIW   $91,$10
-L059C: JR      L05A6
-L059D: OFFIW   $8F,$10
-L05A0: JR      L05A8
-L05A1: BIT     4,$90
-L05A3: JR      L05B3
+L058E: MVIW    $A7,$30		; $FFA7
+L0591: BIT     6,$88		; $FF88
+L0593: JR      L0597		; otherwise
+L0594: OFFIW   $93,$7E		; $FF93
+L0597: JRE     L05D5		; otherwise
+L0599: OFFIW   $91,$10		; $FF91
+L059C: JR      L05A6		; otherwise
+L059D: OFFIW   $8F,$10		; $FF8F
+L05A0: JR      L05A8		; otherwise
+L05A1: BIT     4,$90		; $FF90
+L05A3: JR      L05B3		; otherwise
 L05A4: MVI     A,$01
 L05A6: MVI     A,$04
 L05A8: MVI     A,$02
 L05AA: OFFI    A,$04
-L05AC: JR      L05B5
-L05AD: OFFIW   $0B,$20
-L05B0: MVI     A,$03
+L05AC: JR      L05B5		; otherwise
+L05AD: OFFIW   $0B,$20		; $FF0B
+L05B0: MVI     A,$03		; otherwise
 L05B2: JR      L05B5
-L05B3: LDAW    $72
-L05B5: STAW    $8C
-L05B7: ANIW    $88,$BF
-L05BA: BIT     2,$8C
-L05BC: JR      L05C2
+;
+;
+;
+L05B3: LDAW    $72			; $FF72
+L05B5: STAW    $8C			; $FF8C
+L05B7: ANIW    $88,$BF		; $FF88
+L05BA: BIT     2,$8C		; $FF8C
+L05BC: JR      L05C2		; otherwise
 L05BD: LBCD    $FF9B
 L05C1: JR      L05CE
-L05C2: BIT     0,$8C
-L05C4: JR      L05CA
+;
+;
+;
+L05C2: BIT     0,$8C		; $FF8C
+L05C4: JR      L05CA		; otherwise
 L05C5: LBCD    $FF99
 L05C9: JR      L05CE
+;
+;
+;
 L05CA: LBCD    $FF97
 L05CE: SBCD    $FF89		; LED related?
-L05D2: ANIW    $93,$FE
+L05D2: ANIW    $93,$FE		; $FF93
 L05D5: MOV     A,CR1		; capture bass detune value?
 L05D7: LXI     H,$FFA1
-L05DA: CALF    L0A11
+L05DA: CALF    L0A11		; process A/D value
 L05DC: NOP   				; negates potential RETS  
-L05DD: LDAW    $CC
+L05DD: LDAW    $CC			; $FFCC
 L05DF: CALF    L09FE
-L05E1: OFFIW   $A5,$80
-L05E4: JR      L05F0
-L05E5: LTIW    $A5,$05
-L05E8: JR      L05F0
+L05E1: OFFIW   $A5,$80		; $FFA5
+L05E4: JR      L05F0		; otherwise
+L05E5: LTIW    $A5,$05		; $FFA5
+L05E8: JR      L05F0		; otherwise
 L05E9: DI      
-L05EA: ANIW    $0B,$7F
+L05EA: ANIW    $0B,$7F		; $FF0B
 L05ED: JMP     L0329
-L05F0: BIT     2,$93
-L05F2: JR      L0608
-L05F3: LDAW    $95
+;
+;
+;
+L05F0: BIT     2,$93		; $FF93
+L05F2: JR      L0608		; otherwise
+L05F3: LDAW    $95			; $FF95
 L05F5: OFFI    A,$80
-L05F7: JR      L0608
+L05F7: JR      L0608		; otherwise
 L05F8: MOV     B,A
-L05F9: LDAW    $A2				; $FFA2 -- dynamic sense value?
+L05F9: LDAW    $A2			; $FFA2 -- dynamic sense value?
 L05FB: SLR     A
 L05FD: MOV     D,A
-L05FE: SUBNBW  $96
+L05FE: SUBNBW  $96			; $FF96
 L0601: NEGA    
 L0603: LTI     A,$02
-L0605: CALL    L121E
+L0605: CALL    L121E		; otherwise
 L0608: JMP     L0379
+;
+;
+;
 L060B: CALL    L0610
 L060E: JRE     L0551
+;
+;
+;
 L0610: STAX    H+B
 L0611: LTI     B,$03
-L0614: JMP     L0823
-L0617: BIT     3,$93
-L0619: JR      L0629
-L061A: OFFIW   $8F,$0F
-L061D: JR      L0629
-L061E: OFFIW   $90,$0F
-L0621: JR      L0629
-L0622: OFFIW   $91,$0F
-L0625: JR      L0629
-L0626: ANIW    $83,$7F
+L0614: JMP     L0823		; otherwise
+L0617: BIT     3,$93		; $FF93
+L0619: JR      L0629		; otherwise
+L061A: OFFIW   $8F,$0F		; $FF8F
+L061D: JR      L0629		; otherwise
+L061E: OFFIW   $90,$0F		; $FF90
+L0621: JR      L0629		; otherwise
+L0622: OFFIW   $91,$0F		; $FF91
+L0625: JR      L0629		; otherwise
+L0626: ANIW    $83,$7F		; $FF83
 L0629: ANA     A,D
 L062B: ONI     A,$10
-L062D: JRE     L0651
-L062F: OFFIW   $93,$3E
-L0632: RET     
+L062D: JRE     L0651		; otherwise
+L062F: OFFIW   $93,$3E		; $FF93
+L0632: RET     				; otherwise return
 L0633: MOV     A,B
 L0634: NEI     A,$02
-L0636: JR      L063C
+L0636: JR      L063C		; otherwise
 L0637: NEI     A,$01
-L0639: JR      L063E
+L0639: JR      L063E		; otherwise
 L063A: MVI     A,$02
 L063C: MVI     A,$04
 L063E: MVI     A,$01
 L0640: OFFI    A,$04
-L0642: JR      L0648
-L0643: BIT     5,$0B
-L0645: JR      L0648
+L0642: JR      L0648		; otherwise
+L0643: BIT     5,$0B		; $FF0B
+L0645: JR      L0648		; otherwise
 L0646: MVI     A,$03
-L0648: STAW    $72
-L064A: ORIW    $88,$40
-L064D: ANIW    $93,$3E
-L0650: RET     
+L0648: STAW    $72			; $FF72
+L064A: ORIW    $88,$40		; $FF88
+L064D: ANIW    $93,$3E		; $FF93
+L0650: RET
+;
+;
+;    
 L0651: ONI     A,$08
-L0653: JRE     L0719
+L0653: JRE     L0719		; otherwise
 L0655: NEI     B,$01
-L0658: JRE     L072B
-L065A: OFFIW   $92,$0F
-L065D: RET     
+L0658: JRE     L072B		; otherwise
+L065A: OFFIW   $92,$0F		; $FF92
+L065D: RET 					; otherwise return    
 L065E: EQI     B,$02
-L0661: JRE     L06BF
-L0663: OFFIW   $93,$28
-L0666: RET     
-L0667: BIT     4,$93
-L0669: JR      L0679
-L066A: OFFIW   $93,$80
-L066D: RET     
-L066E: ORIW    $88,$20
-L0671: MVIW    $8A,$00
-L0674: MVIW    $89,$02
+L0661: JRE     L06BF		; otherwise
+L0663: OFFIW   $93,$28		; $FF93
+L0666: RET     				; otherwise return
+L0667: BIT     4,$93		; $FF93
+L0669: JR      L0679		; otherwise
+L066A: OFFIW   $93,$80		; $FF93
+L066D: RET     				; otherwise return
+L066E: ORIW    $88,$20		; $FF88
+L0671: MVIW    $8A,$00		; $FF8A
+L0674: MVIW    $89,$02		; $FF89
 L0677: JRE     L0712
-L0679: ONIW    $93,$06
-L067C: JR      L0685
-L067D: ANIW    $93,$20
-L0680: MVIW    $8B,$00
+;
+;
+;
+L0679: ONIW    $93,$06		; $FF93
+L067C: JR      L0685		; otherwise
+L067D: ANIW    $93,$20		; $FF93
+L0680: MVIW    $8B,$00		; $FF8B
 L0683: JRE     L064A
+;
+;
+;
 L0685: BIT     4,$91
 L0687: JR      L068B
 L0688: MVI     A,$04
@@ -1493,8 +1641,11 @@ L09DC: SUI     A,$0A
 L09DE: JR      L09E2
 L09DF: MVIW    $8A,$00
 L09E2: CALF    L0A0C
-L09E4: STAW    $89					; LED related?
-L09E6: RET     
+L09E4: STAW    $89					; $FF89 -- LED related?
+L09E6: RET
+;
+;
+;    
 L09E7: LXI     D,$FFCC
 L09EA: MVI     B,$06
 L09EC: LDAX    H+
@@ -1509,17 +1660,23 @@ L09F7: ORI     A,$80
 L09F9: MOV     PA,A
 L09FB: LDAX    H
 L09FC: STAX    D
-L09FD: RET     
+L09FD: RET
+;
+;
+;     
 L09FE: ORI     PC,$08
 L0A01: ADI     PC,$10
 L0A04: MOV     ($2800),A
 L0A08: ANI     PC,$F7
-L0A0B: RET     
+L0A0B: RET
+;
+;
+;     
 L0A0C: LXI     H,L1724			; data table
 L0A0F: LDAX    H+A
 L0A10: RET
 ;
-;
+; # handle analog to digital values
 ;     
 L0A11: MOV     B,A
 L0A12: SUBNBX  H
@@ -1601,7 +1758,7 @@ L0A7D: RET
 ;    
 L0A7E: LDAW    $10
 L0A80: CALF    L0A94
-L0A82: RET     
+L0A82: RET					; can be skipped by RETS    
 L0A83: MOV     E,A
 L0A84: LDAW    $0D
 L0A86: ORI     A,$80
@@ -1609,18 +1766,24 @@ L0A88: MVI     H,$FF
 L0A8A: STAX    H
 L0A8B: MOV     A,E
 L0A8C: CALF    L0A94
-L0A8E: RET     
+L0A8E: RET					; can be skipped by RETS     
 L0A8F: STAW    $10
 L0A91: MOV     A,C
 L0A92: STAX    H
-L0A93: RET     
+L0A93: RET
+;
+;
+;     
 L0A94: MOV     L,A
 L0A95: INR     A
 L0A96: NEI     A,$20
-L0A98: MVI     A,$12
-L0A9A: NEAW    $11
-L0A9D: RET     
-L0A9E: RETS    
+L0A98: MVI     A,$12		; otherwise
+L0A9A: NEAW    $11			; $FF11
+L0A9D: RET					; otherwise     
+L0A9E: RETS
+;
+;
+;    
 L0A9F: LDAW    $20
 L0AA1: MOV     L,A
 L0AA2: INR     A
@@ -1667,12 +1830,18 @@ L0AE7: MOV     A,EAH
 L0AE8: MOV     D,A
 L0AE9: GTI     D,$08
 L0AEC: MVI     D,$08
-L0AEE: RET     
+L0AEE: RET
+;
+;
+;     
 L0AEF: MOV     A,L
 L0AF0: INR     A
 L0AF1: NEI     A,$40
 L0AF3: MVI     A,$22
-L0AF5: RET     
+L0AF5: RET
+;
+;
+;     
 L0AF6: LDAX    D
 L0AF7: MOV     B,A
 L0AF8: NEI     A,$00
@@ -1681,19 +1850,25 @@ L0AFB: LDAX    H+
 L0AFC: STAX    D+
 L0AFD: EQI     A,$00
 L0AFF: JR      L0AFB
-L0B00: RET     
-L0B01: LDAW    $81
+L0B00: RET
+;
+;
+;     
+L0B01: LDAW    $81			; $FF81
 L0B03: MOV     C,A
 L0B04: NEAX    H
-L0B06: RETS    
+L0B06: RETS					; otherwise    
 L0B07: ORI     A,$80
 L0B09: NEAX    H+
-L0B0B: RET     
+L0B0B: RET					; otherwise    
 L0B0C: INR     B
 L0B0D: MOV     A,C
 L0B0E: EQI     B,$06
-L0B11: JR      L0B04
-L0B12: RETS    
+L0B11: JR      L0B04		; otherwise
+L0B12: RETS
+;
+;
+;    
 L0B13: NEAX    H+
 L0B15: JR      L0B18
 L0B16: INX     D
@@ -1702,14 +1877,20 @@ L0B18: LDAX    H+
 L0B19: STAX    D+
 L0B1A: EQI     A,$00
 L0B1C: JR      L0B18
-L0B1D: RET     
-L0B1E: LDAW    $81
+L0B1D: RET
+;
+;
+;     
+L0B1E: LDAW    $81			; $FF81
 L0B20: NEAX    H+
-L0B22: RETS    
+L0B22: RETS 				; otherwise   
 L0B23: INR     B
 L0B24: EQI     B,$06
-L0B27: JR      L0B20
-L0B28: RET     
+L0B27: JR      L0B20		; otherwise
+L0B28: RET
+;
+;
+;    
 L0B29: DCX     H
 L0B2A: ORI     A,$80
 L0B2C: STAX    H
@@ -1753,7 +1934,10 @@ L0B5F: LDAX    D+
 L0B60: STAX    H+
 L0B61: DCR     B
 L0B62: JR      L0B5F
-L0B63: RET     
+L0B63: RET
+;
+;
+;     
 L0B64: MVI     A,$A2
 L0B66: MVI     A,$C2
 L0B68: MOV     C,A
@@ -1779,12 +1963,18 @@ L0B81: LDAX    D+
 L0B82: CALF    L0B36
 L0B84: LDAX    D
 L0B85: CALF    L0B36
-L0B87: RET     
+L0B87: RET
+;
+;
+;     
 L0B88: CALF    L0B36
 L0B8A: MOV     A,D
 L0B8B: ANI     A,$7F
 L0B8D: CALF    L0B36
-L0B8F: RET     
+L0B8F: RET
+;
+;
+;     
 L0B90: MOV     A,L
 L0B91: STAW    $21
 L0B93: JR      L0B9D
@@ -1869,6 +2059,9 @@ L0C0B: ONI     A,$02
 L0C0D: JR      L0C1B
 L0C0E: CALF    L0E30
 L0C10: JR      L0C1B
+;
+;
+;
 L0C11: ONI     A,$01
 L0C13: JR      L0C16
 L0C14: CALF    L0E49
@@ -1878,16 +2071,25 @@ L0C19: CALF    L0E68
 L0C1B: BIT     2,$80
 L0C1D: RET     
 L0C1E: CALF    L0E29
-L0C20: RET     
+L0C20: RET
+;
+;
+;   
 L0C21: LTI     A,$D0
 L0C23: JR      L0C31
 L0C24: EQI     A,$C0
 L0C26: JR      L0C2B
 L0C27: CALL    L1300
-L0C2A: RET     
+L0C2A: RET
+;
+;
+;   
 L0C2B: NEI     A,$C1
 L0C2D: CALL    L130D
-L0C30: RET     
+L0C30: RET
+;
+;
+; 
 L0C31: LTI     A,$E0
 L0C33: RET     
 L0C34: MOV     D,A
@@ -1914,19 +2116,29 @@ L0C55: ONI     D,$01
 L0C58: RET     
 L0C59: MVI     A,$87
 L0C5B: CALF    L0B36
-L0C5D: RET     
+L0C5D: RET
+;
+;
+;    
 L0C5E: ORIW    $0B,$10
 L0C61: CALL    L1300
 L0C64: JR      L0C6B
+;
+;
+;
 L0C65: ANIW    $0B,$EF
 L0C68: CALL    L130D
 L0C6B: CALF    L0F79
 L0C6D: CALF    L0F83
-L0C6F: RET     
+L0C6F: RET
+;
+;
+;    
 L0C70: LXI     H,$FF7A
 L0C73: MVI     B,$00
 L0C75: CALF    L0B01
-L0C77: JRE     L0C9A
+L0C77: JRE     L0C9A		; can be skipped by RETS
+;
 L0C79: EQI     B,$06
 L0C7C: JR      L0C8A
 L0C7D: LXI     D,$FF73
@@ -1942,7 +2154,10 @@ L0C90: LDAW    $CB
 L0C92: CALF    L0AC8
 L0C94: CALF    L0AB6
 L0C96: ORIW    $E9,$01
-L0C99: RET     
+L0C99: RET
+;
+;
+;    
 L0C9A: MOV     A,B
 L0C9B: INR     A
 L0C9C: LXI     H,$FF73
@@ -1954,7 +2169,8 @@ L0CA8: JRE     L0CD7
 L0CAA: LXI     H,$FF7A
 L0CAD: MVI     B,$04
 L0CAF: CALF    L0B01
-L0CB1: JR      L0CC6
+L0CB1: JR      L0CC6		; can be skipped by RETS
+;
 L0CB2: EQI     B,$06
 L0CB5: JR      L0CA5
 L0CB6: NEIW    $73,$00
@@ -1983,11 +2199,15 @@ L0CDD: LDAW    $B9
 L0CDF: CALF    L0AC8
 L0CE1: CALF    L0AB6
 L0CE3: ORIW    $E9,$02
-L0CE6: RET     
+L0CE6: RET
+;
+;
+;     
 L0CE7: LXI     H,$FF7C
 L0CEA: MVI     B,$02
 L0CEC: CALF    L0B01
-L0CEE: JR      L0D05
+L0CEE: JR      L0D05			; can be skipped by RETS
+;
 L0CEF: EQI     B,$06
 L0CF2: JR      L0D00
 L0CF3: LXI     D,$FF75
@@ -2104,7 +2324,10 @@ L0DA7: MOV     A,EAH
 L0DA8: STAW    $9F
 L0DAA: ANI     PC,$FB
 L0DAD: ORIW    $E9,$04
-L0DB0: RET     
+L0DB0: RET
+;
+;
+;    
 L0DB1: GTI     A,$1E
 L0DB3: JR      L0DBA
 L0DB4: GTI     A,$60
@@ -2116,7 +2339,8 @@ L0DBC: JR      L0DB1
 L0DBD: LXI     H,$FF7A
 L0DC0: MVI     B,$00
 L0DC2: CALF    L0B1E
-L0DC4: RET     
+L0DC4: RET					; can be skipped by RETS
+;
 L0DC5: CALF    L0B29
 L0DC7: LXI     H,$FF77
 L0DCA: MVI     A,$00
@@ -2125,6 +2349,9 @@ L0DCE: JR      L0DD4
 L0DCF: EQI     L,$72
 L0DD2: JR      L0DCC
 L0DD3: JR      L0DD5
+;
+;
+;
 L0DD4: INX     H
 L0DD5: INX     H
 L0DD6: MOV     A,D
@@ -2133,11 +2360,15 @@ L0DD8: STAX    H
 L0DD9: NEIW    $78,$00
 L0DDC: RET     
 L0DDD: ANIW    $E9,$FE
-L0DE0: RET     
+L0DE0: RET
+;
+;
+;    
 L0DE1: LXI     H,$FF7A
 L0DE4: MVI     B,$04
 L0DE6: CALF    L0B1E
-L0DE8: RET     
+L0DE8: RET					; can be skipped by RETS
+;
 L0DE9: SUI     B,$04
 L0DEC: CALF    L0B29
 L0DEE: LXI     H,$FF73
@@ -2150,11 +2381,15 @@ L0DF8: STAX    H
 L0DF9: NEIW    $74,$00
 L0DFC: RET     
 L0DFD: ANIW    $E9,$FD
-L0E00: RET     
+L0E00: RET
+;
+;
+;     
 L0E01: LXI     H,$FF7C
 L0E04: MVI     B,$02
 L0E06: CALF    L0B1E
-L0E08: RET     
+L0E08: RET					; can be skipped by RETS
+;
 L0E09: CALF    L0B29
 L0E0B: LXI     H,$FF77
 L0E0E: MVI     A,$00
@@ -2163,6 +2398,9 @@ L0E12: JR      L0E18
 L0E13: EQI     L,$74
 L0E16: JR      L0E10
 L0E17: JR      L0E19
+;
+;
+;
 L0E18: INX     H
 L0E19: INX     H
 L0E1A: MOV     A,D
@@ -2176,7 +2414,10 @@ L0E25: EQAW    $71
 L0E28: RET     
 L0E29: ORI     PC,$04
 L0E2C: ANIW    $E9,$FB
-L0E2F: RET     
+L0E2F: RET
+;
+;
+;     
 L0E30: LXI     H,$FF7A
 L0E33: LXI     B,$0500
 L0E36: CALF    L0E81
@@ -2188,6 +2429,9 @@ L0E41: CALF    L0E8C
 L0E43: MVI     A,$80
 L0E45: CALF    L0E92
 L0E47: JRE     L0DDD
+;
+;
+;
 L0E49: ONIW    $7A,$80
 L0E4C: JR      L0E51
 L0E4D: OFFIW   $7B,$80
@@ -2203,6 +2447,9 @@ L0E60: CALF    L0B36
 L0E62: MVI     A,$81
 L0E64: CALF    L0B36
 L0E66: JRE     L0DFD
+;
+;
+;
 L0E68: LXI     H,$FF7C
 L0E6B: LXI     B,$0300
 L0E6E: CALF    L0E81
@@ -2214,6 +2461,9 @@ L0E79: CALF    L0E8C
 L0E7B: MVI     A,$82
 L0E7D: CALF    L0E92
 L0E7F: JRE     L0DDD
+;
+;
+;
 L0E81: LDAX    H
 L0E82: ONI     A,$80
 L0E84: MVI     C,$01
@@ -2221,7 +2471,10 @@ L0E86: ORI     A,$80
 L0E88: STAX    H+
 L0E89: DCR     B
 L0E8A: JR      L0E81
-L0E8B: RET     
+L0E8B: RET
+;
+;
+;     
 L0E8C: STAX    H+
 L0E8D: INR     A
 L0E8E: EQI     A,$07
@@ -2259,36 +2512,39 @@ L0EB3: JR      L0EA2
 L0EB4: ANI     A,$7F
 L0EB6: MOV     B,A
 L0EB7: CALF    L0E9B
-L0EB9: NEAW    $10
-L0EBC: RET     
+L0EB9: NEAW    $10				; $FF10
+L0EBC: RET 						; otherwise return    
 L0EBD: MOV     L,A
 L0EBE: LDAX    H
 L0EBF: OFFI    A,$80
-L0EC1: JR      L0EB0
+L0EC1: JR      L0EB0			; otherwise
 L0EC2: MOV     C,A
 L0EC3: CALF    L0E9B
-L0EC5: STAW    $11
+L0EC5: STAW    $11				; $FF11
 L0EC7: MOV     A,B
-L0EC8: GTI     A,$22
-L0ECA: RET     
-L0ECB: LTI     A,$34
-L0ECD: RET     
-L0ECE: SUI     A,$23
-L0ED0: SLL     A
+L0EC8: GTI     A,$22			; skip next if accumulator is greater than 34
+L0ECA: RET     					; otherwise 34 or less, so return
+L0ECB: LTI     A,$34			; skip next if accumulator is less than 52
+L0ECD: RET     					; otherwise 52 or more, so return
+L0ECE: SUI     A,$23			; subtract 35
+L0ED0: SLL     A				; double the offset because table holds 16-bit values
 L0ED2: LXI     H,L172E			; data table
-L0ED5: LDEAX   H+A
+L0ED5: LDEAX   H+A				; get 2 byte value from table
 L0ED7: LXI     D,$3000
 L0EDA: MOV     A,C
 L0EDB: SLR     A
-L0EDD: STAX    D
+L0EDD: STAX    D				; write to peripheral?
 L0EDE: MOV     A,B
 L0EDF: EQI     A,$2A
 L0EE1: NEI     A,$2C
-L0EE3: JR      L0EEB
+L0EE3: JR      L0EEB			; otherwise
 L0EE4: EQI     A,$2E
-L0EE6: JR      L0EEF
-L0EE7: ORIW    $88,$80
+L0EE6: JR      L0EEF			; otherwise
+L0EE7: ORIW    $88,$80			; $FF88
 L0EEA: JR      L0EF5
+;
+;
+;
 L0EEB: ANIW    $88,$7F
 L0EEE: JR      L0EF5
 ;
@@ -2425,14 +2681,14 @@ L0F95:
 ;
 ; # probably engineer mode, test mode or similar
 ;   
-L1000: STAW    $8F
+L1000: STAW    $8F				; $FF8F
 L1002: MOV     A,(L0006)		; beyond stupid to use vector table area to hold one constant byte...
-L1006: STAW    $06
+L1006: STAW    $06				; $FF06
 L1008: JMP     L036A
 ;
 ;
 ;
-L100B: LDAW    $D7
+L100B: LDAW    $D7				; $FFD7
 L100D: LTI     A,$60
 L100F: JR      L1015
 L1010: LTI     A,$40
@@ -2473,42 +2729,51 @@ L1049: MOV     PA,A
 L104B: LDAX    H
 L104C: SLR     A
 L104E: STAX    D
-L104F: RET     
-L1050: EQI     B,$04
-L1053: JR      L1055
-L1054: DCR     B
-L1055: NEI     B,$14
-L1058: JRE     L10CD
+L104F: RET
+;
+;
+;     
+L1050: EQI     B,$04			; skip next if B is 4
+L1053: JR      L1055			; otherwise B is not 4, so hop over next line
+L1054: DCR     B				; reduce B from 4 to 3
+L1055: NEI     B,$14			; skip next if B is not 20
+L1058: JRE     L10CD			; otherwise B is 20, so jump
 L105A: LXI     H,L10E0			; has to be data table
-L105D: LDAX    H+B
-L105E: NEI     A,$00
-L1060: RET     
-L1061: NEI     A,$01
-L1063: JRE     L107F
-L1065: NEI     A,$0A
-L1067: JRE     L108E
-L1069: NEI     A,$09
-L106B: JRE     L10A5
-L106D: NEI     A,$0B
-L106F: JRE     L10AF
-L1071: NEI     A,$02
-L1073: JRE     L10C2
+L105D: LDAX    H+B				; read value from table
+L105E: NEI     A,$00			; skip next if table value was not zero
+L1060: RET						; otherwise table value was zero, so return     
+L1061: NEI     A,$01			; skip next if table value was not 1
+L1063: JRE     L107F			; otherwise table value was 1, so jump
+L1065: NEI     A,$0A			; skip next if table value was not $0A
+L1067: JRE     L108E			; otherwise table value was $0A, so jump
+L1069: NEI     A,$09			; skip next if table value was not 9
+L106B: JRE     L10A5			; otherwise table value was 9, so jump
+L106D: NEI     A,$0B			; skip next if table value was not $0B
+L106F: JRE     L10AF			; otherwise table value was $0B, so jump
+L1071: NEI     A,$02			; skip next if table value was not 2
+L1073: JRE     L10C2			; otherwise table value was 2, so jump
 L1075: DCR     A
 L1076: MOV     B,A
 L1077: LXI     H,$FFCC
 L107A: MOV     A,D
 L107B: SLR     A
 L107D: STAX    H+B
-L107E: RET     
+L107E: RET
+;
+; # routine when value from table @ L10E0 is 1
+;     
 L107F: MOV     A,D
 L1080: SLR     A
 L1082: ANI     A,$3F
 L1084: MOV     C,A
-L1085: LDAW    $CC
+L1085: LDAW    $CC			; $FFCC
 L1087: ANI     A,$C0
 L1089: ORA     A,C
-L108B: STAW    $CC
-L108D: RET     
+L108B: STAW    $CC			; $FFCC
+L108D: RET 
+;
+;
+;    
 L108E: MOV     A,D
 L108F: LTI     A,$60
 L1091: JR      L1097
@@ -2518,30 +2783,42 @@ L1095: MVI     A,$00
 L1097: MVI     A,$80
 L1099: MVI     A,$40
 L109B: MOV     C,A
-L109C: LDAW    $CC
+L109C: LDAW    $CC			; $FFCC
 L109E: ANI     A,$3F
 L10A0: ORA     A,C
-L10A2: STAW    $CC
-L10A4: RET     
+L10A2: STAW    $CC			; $FFCC
+L10A4: RET
+;
+;
+;    
 L10A5: MOV     A,D
 L10A6: ANI     A,$60
 L10A8: BIT     7,$CD
 L10AA: ORI     A,$80
 L10AC: MOV     PA,A
-L10AE: RET     
+L10AE: RET
+;
+;
+;     
 L10AF: ANI     PA,$7F
 L10B2: ONI     D,$10
 L10B5: ORI     PA,$80
 L10B8: ANIW    $CD,$7F
 L10BB: OFFI    D,$10
 L10BE: ORIW    $CD,$80
-L10C1: RET     
+L10C1: RET
+;
+;
+;   
 L10C2: MOV     A,D
 L10C3: SLR     A
 L10C5: ONI     PA,$80
 L10C8: ORI     A,$80
-L10CA: STAW    $CD
-L10CC: RET     
+L10CA: STAW    $CD			; $FFCD
+L10CC: RET
+;
+;
+;    
 L10CD: ANI     PA,$7F
 L10D0: ONI     D,$40
 L10D3: ORI     PA,$80
@@ -2582,20 +2859,29 @@ L1114: JR      L111B
 L1115: MOV     A,D
 L1116: CALL    L11E8
 L1119: JRE     L1154
+;
+;
+;
 L111B: EQI     B,$10
 L111E: JR      L1125
 L111F: MOV     A,D
 L1120: CALL    L11BF
 L1123: JRE     L1154
+;
+;
+;
 L1125: EQI     B,$11
 L1128: JR      L112F
 L1129: MOV     A,D
 L112A: CALL    L11CB
 L112D: JRE     L1154
-L112F: PUSH    H
+;
+;
+;
+L112F: PUSH    H				; save HL on stack
 L1130: LXI     H,L000B			; mini table
-L1133: LDAX    H+B
-L1134: POP     H
+L1133: LDAX    H+B				; get value from table
+L1134: POP     H				; get HL from stack
 L1135: MOV     B,A
 L1136: MOV     A,D
 L1137: STAX    H+B
@@ -2616,7 +2902,10 @@ L114D: CALF    L0B36
 L114F: MOV     A,D
 L1150: CALF    L0B36
 L1152: POP     B
-L1153: RET     
+L1153: RET
+;
+;
+;     
 L1154: POP     B
 L1155: PUSH    B
 L1156: LDAX    H+
@@ -2664,7 +2953,7 @@ L1189:
 	STAW    $E7
 	RETS
 ;
-;
+; # SysEx related?
 ;   
 L1190: LXI     D,$FFD4
 L1193: LDAX    D+$0F
@@ -2693,7 +2982,10 @@ L11BA: LDAX    D+
 L11BB: STAX    H+
 L11BC: DCR     B
 L11BD: JR      L11BA
-L11BE: RET     
+L11BE: RET
+;
+;
+;    
 L11BF: XRI     A,$1F
 L11C1: ANI     A,$3F
 L11C3: MOV     B,A
@@ -2701,7 +2993,10 @@ L11C4: LDAX    H
 L11C5: ANI     A,$40
 L11C7: ORA     A,B
 L11C9: STAX    H
-L11CA: RET     
+L11CA: RET
+;
+;
+;     
 L11CB: MOV     C,A
 L11CC: ANI     A,$27
 L11CE: XRI     A,$07
@@ -2719,7 +3014,10 @@ L11E1: LDAX    H
 L11E2: ANI     A,$3F
 L11E4: ORA     A,B
 L11E6: STAX    H
-L11E7: RET     
+L11E7: RET
+;
+;
+;     
 L11E8: SLR     A
 L11EA: SLR     A
 L11EC: ANI     A,$18
@@ -2728,22 +3026,34 @@ L11EF: LDAX    H+$01
 L11F1: ANI     A,$67
 L11F3: ORA     A,B
 L11F5: STAX    H+$01
-L11F7: RET     
+L11F7: RET
+;
+;
+;     
 L11F8: ORIW    $97,$08
 L11FB: ORIW    $98,$08
 L11FE: MVIW    $72,$02
 L1201: ORIW    $88,$40
-L1204: RET     
+L1204: RET
+;
+;
+;    
 L1205: ORIW    $99,$08
 L1208: ORIW    $9A,$08
 L120B: MVIW    $72,$03
 L120E: BIT     5,$0B
 L1210: MVIW    $72,$01
 L1213: JR      L1201
+;
+;
+;
 L1214: ORIW    $9B,$08
 L1217: ORIW    $9C,$08
 L121A: MVIW    $72,$04
 L121D: JR      L1201
+;
+;
+;
 L121E: MOV     A,D
 L121F: STAW    $96
 L1221: PUSH    D
@@ -2755,24 +3065,24 @@ L1229: SBCD    $FF89			; LED related?
 L122D: POP     B
 L122E: POP     D
 L122F: MOV     A,D
-L1230: OFFIW   $A6,$04
-L1233: JMP     L1050
-L1236: BIT     0,$A6
+L1230: OFFIW   $A6,$04			; $FFA6
+L1233: JMP     L1050			; otherwise
+L1236: BIT     0,$A6			; $FFA6
 L1238: LXI     H,$FFA8
 L123B: LXI     H,$FFBA
 L123E: LTI     B,$0F
-L1241: JR      L125A
+L1241: JR      L125A			; otherwise
 L1242: INR     B
 L1243: STAX    H+B
 L1244: MOV     A,B
 L1245: MOV     E,A
-L1246: BIT     0,$A6
+L1246: BIT     0,$A6			; $FFA6
 L1248: MVI     A,$A0
 L124A: MVI     A,$C0
 L124C: ORA     A,E
 L124E: CALF    L0B88
-L1250: BIT     5,$0B
-L1252: RET     
+L1250: BIT     5,$0B			; $FF0B
+L1252: RET  					; otherwise return   
 L1253: MVI     A,$A0
 L1255: ORA     A,E
 L1257: CALF    L0B88
@@ -2791,6 +3101,9 @@ L126D: STAX    H+$10
 L126F: MOV     D,A
 L1270: MVI     E,$10
 L1272: JRE     L1246
+;
+;
+;
 L1274: MOV     A,B
 L1275: MVI     E,$00
 L1277: SUI     A,$11
@@ -2877,6 +3190,9 @@ L12ED: LDAX    H
 L12EE: ORA     A,B
 L12F0: STAX    H
 L12F1: JRE     L12C7
+;
+;
+;
 L12F3: OFFIW   $96,$40
 L12F6: RET     
 L12F7: XRI     B,$FF
@@ -2884,11 +3200,17 @@ L12FA: LDAX    H
 L12FB: ANA     A,B
 L12FD: STAX    H
 L12FE: JRE     L12C7
+;
+;
+;
 L1300: ORIW    $0B,$20
 L1303: ONIW    $93,$1C
 L1306: MVIW    $8C,$03
 L1309: MVIW    $72,$03
 L130C: JR      L1319
+;
+;
+;
 L130D: ANIW    $0B,$DF
 L1310: ONIW    $93,$1C
 L1313: MVIW    $8C,$02
@@ -2924,7 +3246,7 @@ L134D: EI
 ;     
 L134E: ORI     PC,$08
 L1351: ANI     PC,$8F
-L1354: LDAW    $D1
+L1354: LDAW    $D1			; $FFD1
 L1356: MOV     ($2800),A
 L135A: ANI     PC,$F7
 L135D: LBCD    $FF8D
@@ -2934,14 +3256,14 @@ L1365: MOV     D,A
 L1366: MOV     A,C
 L1367: XRA     D,A
 L1369: EQI     D,$00
-L136C: JRE     L13F6
+L136C: JRE     L13F6		; otherwise
 ; fall-through or jumped to
-L136E: LDAW    $D2
+L136E: LDAW    $D2			; $FFD2
 L1370: CALF    L09FE
-L1372: EQIW    $A7,$FF
-L1375: JR      L138C
-L1376: NEIW    $89,$00
-L1379: JR      L1381
+L1372: EQIW    $A7,$FF		; $FFA7
+L1375: JR      L138C		; otherwise
+L1376: NEIW    $89,$00		; $FF89
+L1379: JR      L1381		; otherwise
 L137A: LXI     B,$0000
 L137D: MVIW    $A7,$20
 L1380: JR      L1388
@@ -2949,91 +3271,112 @@ L1380: JR      L1388
 ;
 ;
 L1381: LBCD    $FF97
-L1385: MVIW    $A7,$30
+L1385: MVIW    $A7,$30		; $FFA7
 L1388: SBCD    $FF89		; LED related?
-L138C: LDAW    $D0
+L138C: LDAW    $D0			; load $FFD0
 L138E: CALF    L09FE
 L1390: MOV     A,CR0		; capture master tune value?
 L1392: LXI     H,$FFA0
-L1395: CALF    L0A11
-L1397: LDAW    $D3			; can be skipped by RETS
+L1395: CALF    L0A11		; process A/D value
+L1397: LDAW    $D3			; load $FFD3 -- can be skipped by RETS
 L1399: CALF    L09FE
 L139B: MOV     A,CR1		; capture bass detune value?
 L139D: LXI     H,$FFA1
-L13A0: CALF    L0A11
+L13A0: CALF    L0A11		; process A/D value
 L13A2: MOV     A,CR2		; can be skipped by RETS -- capture dynamic sense value?
 L13A4: STAW    $A2			; $FFA2 -- dynamic sense value?
 L13A6: LDAW    $CD
 L13A8: CALF    L09FE
-L13AA: BIT     7,$E7
-L13AC: JRE     L13D7
-L13AE: LDAW    $01
-L13B0: XRAW    $8E
+L13AA: BIT     7,$E7		; $FFE7
+L13AC: JRE     L13D7		; otherwise
+L13AE: LDAW    $01			; $FF01
+L13B0: XRAW    $8E			; $FF8E
 L13B3: NEI     A,$00
-L13B5: JRE     L13D7
-L13B7: LDAW    $8E
-L13B9: STAW    $01
+L13B5: JRE     L13D7		; otherwise
+L13B7: LDAW    $8E			; $FF8E
+L13B9: STAW    $01			; $FF01
 L13BB: EQI     A,$00
-L13BD: JR      L13D7
-L13BE: INRW    $02
-L13C0: BIT     0,$02
-L13C2: JR      L13CD
-L13C3: BIT     2,$00
-L13C5: JR      L13C9
+L13BD: JR      L13D7		; otherwise
+L13BE: INRW    $02			; $FF02
+L13C0: BIT     0,$02		; $FF02
+L13C2: JR      L13CD		; otherwise
+L13C3: BIT     2,$00		; $FF00
+L13C5: JR      L13C9		; otherwise
 L13C6: CALF    L0D0F
 L13C8: JR      L13D7
+;
+;
+;
 L13C9: CALL    L16C1
 L13CC: JR      L13D7
-L13CD: BIT     2,$00
-L13CF: JR      L13D3
+;
+;
+;
+L13CD: BIT     2,$00		; $FF00
+L13CF: JR      L13D3		; otherwise
 L13D0: CALF    L0E23
 L13D2: JR      L13D7
+;
+;
+;
 L13D3: MVI     A,$80
 L13D5: CALF    L0E92
-L13D7: LDAW    $9F
+L13D7: LDAW    $9F			; $FF9F
 L13D9: CALF    L09FE
-L13DB: BIT     6,$E7
-L13DD: JR      L13E8
-L13DE: BIT     4,$91
-L13E0: JR      L13E5
+L13DB: BIT     6,$E7		; $FFE7
+L13DD: JR      L13E8		; otherwise
+L13DE: BIT     4,$91		; $FF91
+L13E0: JR      L13E5		; otherwise
 L13E1: ANI     PC,$FB
 L13E4: JR      L13E8
+;
+;
+;
 L13E5: ORI     PC,$04
-L13E8: LDAW    $A4
+L13E8: LDAW    $A4			; $FFA4
 L13EA: CALF    L09FE
 L13EC: DIV     A
-L13EE: LDAW    $CC
+L13EE: LDAW    $CC			; $FFCC
 L13F0: CALF    L09FE
 L13F2: DIV     A
 L13F4: JRE     L134E
+;
+;
+;
 L13F6: STAX    H+B
 L13F7: ANA     A,D
 L13F9: NEI     A,$00
-L13FB: JRE     L136E
+L13FB: JRE     L136E		; otherwise
 L13FD: EQI     B,$03
-L1400: JR      L1405
-L1401: STAW    $00
+L1400: JR      L1405		; otherwise
+L1401: STAW    $00			; $FF00
 L1403: JRE     L1427
+;
+;
+;
 L1405: OFFI    A,$10
 L1407: JMP     L1555		; goes to a jump table
 L140A: ONI     A,$08
-L140C: JR      L1418
+L140C: JR      L1418		; otherwise
 L140D: NEI     B,$00
-L1410: JRE     L1499
+L1410: JRE     L1499		; otherwise
 L1412: NEI     B,$01
-L1415: JR      L1427
+L1415: JR      L1427		; otherwise
 L1416: JRE     L149C
+;
+;
+;
 L1418: OFFI    A,$04
-L141A: JR      L1422
+L141A: JR      L1422		; otherwise
 L141B: OFFI    A,$02
-L141D: JR      L1420
+L141D: JR      L1420		; otherwise
 L141E: MVI     A,$03
 L1420: MVI     A,$06
 L1422: MVI     A,$09
 L1424: SUB     A,B
 L1426: JR      L1429
 L1427: MVI     A,$00
-L1429: STAW    $E7
+L1429: STAW    $E7			; $FFE7
 L142B: CALF    L0E29
 L142D: MVI     A,$80
 L142F: CALF    L0E92
@@ -3041,26 +3384,26 @@ L1431: CALF    L0F35
 L1433: MVI     A,$9C
 L1435: CALF    L0B36
 L1437: CALF    L0B36
-L1439: NEIW    $00,$08
-L143C: JMP     L16A0
-L143F: NEIW    $00,$04
-L1442: JMP     L15FD
+L1439: NEIW    $00,$08		; $FF00
+L143C: JMP     L16A0		; otherwise
+L143F: NEIW    $00,$04		; $FF00
+L1442: JMP     L15FD		; otherwise
 L1445: MVI     B,$0F
 L1447: DIV     A
 L1449: DCR     C
-L144A: JR      L1447
+L144A: JR      L1447		; otherwise
 L144B: DCR     B
-L144C: JR      L1447
-L144D: LDAW    $E7
+L144C: JR      L1447		; otherwise
+L144D: LDAW    $E7			; $FFE7
 L144F: CALF    L0A0C
-L1451: STAW    $98
-L1453: EQIW    $00,$02
+L1451: STAW    $98			; $FF98
+L1453: EQIW    $00,$02		; $FF00
 L1456: MVI     A,$10
 L1458: MVI     A,$44
-L145A: STAW    $97
-L145C: MVIW    $E8,$00
-L145F: MVIW    $03,$00
-L1462: EQIW    $00,$02
+L145A: STAW    $97			; $FF97
+L145C: MVIW    $E8,$00		; $FFE8
+L145F: MVIW    $03,$00		; $FF03
+L1462: EQIW    $00,$02		; $FF00
 L1465: MVI     A,$00
 L1467: MVI     A,$0A
 L1469: ADDW    $E7
@@ -3096,8 +3439,11 @@ L1471:
 ;
 L1499: MVI     A,$0A
 L149B: JR      L149E
+;
+;
+;
 L149C: MVI     A,$0B
-L149E: STAW    $E7
+L149E: STAW    $E7			; $FFE7
 L14A0: JMP     L16A0
 ;
 ; entry in jump table @ L1471
@@ -3114,16 +3460,16 @@ L14B1: JMP     L136E
 ; entry in jump table @ L1471
 ;
 L14B4: MVI     A,$64
-L14B6: CALL    L16D6			; missing?
-L14B9: MVIW    $81,$3C
-L14BC: ORIW    $E7,$80
+L14B6: CALL    L16D6
+L14B9: MVIW    $81,$3C		; $FF81
+L14BC: ORIW    $E7,$80		; $FFE7
 L14BF: JR      L14B1
 ;
 ; entry in jump table @ L1471
 ;
 L14C0: MVI     A,$65
 L14C2: CALL    L16D6
-L14C5: MVIW    $81,$3C
+L14C5: MVIW    $81,$3C		; $FF81
 L14C8: CALL    L16C1
 L14CB: JR      L14B1
 ;
@@ -3131,42 +3477,42 @@ L14CB: JR      L14B1
 ;
 L14CC: MVI     A,$65
 L14CE: CALL    L16D6
-L14D1: MVIW    $81,$54
+L14D1: MVIW    $81,$54		; $FF81
 L14D4: JR      L14C8
 ;
 ; entry in jump table @ L1471
 ;
 L14D5: MVI     A,$67
 L14D7: CALL    L16D6
-L14DA: MVIW    $03,$01
-L14DD: EQIW    $E7,$04
-L14E0: MVIW    $03,$03
+L14DA: MVIW    $03,$01		; $FF03
+L14DD: EQIW    $E7,$04		; $FFE7
+L14E0: MVIW    $03,$03		; $FF03
 L14E3: JR      L14C5
 ;
 ; entry in jump table @ L1471
 ;
 L14E4: MVI     A,$6A
 L14E6: CALL    L16D6
-L14E9: MVIW    $95,$6E
-L14EC: MVIW    $03,$02
-L14EF: EQIW    $E7,$05
-L14F2: MVIW    $03,$03
+L14E9: MVIW    $95,$6E		; $FF95
+L14EC: MVIW    $03,$02		; $FF03
+L14EF: EQIW    $E7,$05		; $FFE7
+L14F2: MVIW    $03,$03		; $FF03
 L14F5: JRE     L14C5
 ;
 ; entry in jump table @ L1471
 ;
 L14F7: MVI     A,$66
 L14F9: CALL    L16D6
-L14FC: MVIW    $95,$06
-L14FF: MVIW    $03,$04
+L14FC: MVIW    $95,$06		; $FF95
+L14FF: MVIW    $03,$04		; $FF03
 L1502: JRE     L14C5
 ;
 ; entry in jump table @ L1471
 ;
 L1504: MVI     A,$6A
-L1506: MVIW    $03,$05
+L1506: MVIW    $03,$05		; $FF03
 L1509: CALL    L16D6
-L150C: MVIW    $81,$3C
+L150C: MVIW    $81,$3C		; $FF81
 L150F: CALL    L16F9
 L1512: JMP     L136E
 ;
@@ -3174,47 +3520,47 @@ L1512: JMP     L136E
 ;
 L1515: MVI     A,$67
 L1517: CALL    L16D6
-L151A: EQIW    $E7,$02
-L151D: JR      L152A
+L151A: EQIW    $E7,$02		; $FFE7
+L151D: JR      L152A		; otherwise
 L151E: LXI     D,$0701
 L1521: CALL    L16E6
 L1524: LXI     D,$6505
 L1527: CALL    L16E6
-L152A: MVIW    $03,$05
+L152A: MVIW    $03,$05		; $FF03
 L152D: JRE     L150C
 ;
 ; entry in jump table @ L1471
 ;
-L152F: EQIW    $E7,$03
+L152F: EQIW    $E7,$03		; $FFE7
 L1532: MVI     A,$6B
 L1534: MVI     A,$6C
 L1536: JRE     L1506
 ;
 ; entry in jump table @ L1471
 ;
-L1538: EQIW    $E7,$05
+L1538: EQIW    $E7,$05		; $FFE7
 L153B: MVI     A,$20
 L153D: MVI     A,$40
-L153F: STAW    $E9
-L1541: MVIW    $03,$06
-L1544: MVIW    $02,$00
+L153F: STAW    $E9			; $FFE9
+L1541: MVIW    $03,$06		; $FF03
+L1544: MVIW    $02,$00		; $FF02
 L1547: MVI     A,$67
 L1549: CALL    L16D6
-L154C: MVIW    $81,$24
+L154C: MVIW    $81,$24		; $FF81
 L154F: CALL    L16F9
 L1552: JMP     L136E
 ;
 ;
 ;
-L1555: OFFIW   $00,$0C
-L1558: JR      L1560
-L1559: LDAW    $03
-L155B: NEI     A,$00
-L155D: JR      L1560
-L155E: LTI     A,$07
-L1560: JRE     L1582
-L1562: DCR     A
-L1563: SLL     A
+L1555: OFFIW   $00,$0C		; $FF00
+L1558: JR      L1560		; otherwise jump
+L1559: LDAW    $03			; $FF03
+L155B: NEI     A,$00		; skip next if not equal to zero
+L155D: JR      L1560		; otherwise zero so jump
+L155E: LTI     A,$07		; skip next if less than 7 (since there are only 6 table values)
+L1560: JRE     L1582		; otherwise value was 7 or more, so jump
+L1562: DCR     A			; decrement to account for zero index
+L1563: SLL     A			; double the index because table values are 16-bit
 L1565: TABLE   
 L1567: JB
 ;
@@ -3231,17 +3577,19 @@ L1568:
 ; entry in jump table @ L1568
 ;
 L1574: 
-	INRW    $95
+	INRW    $95				; $FF95
 	NOP						; negates potential skip
 	LXI     D,$0005
-	BIT     0,$95
-	LXI     D,$6505
-L157F: CALL    L16E6
-L1582: JMP     L136E
+	BIT     0,$95			; $FF95
+	LXI     D,$6505			; otherwise
+L157F:
+	CALL    L16E6
+L1582:
+	JMP     L136E
 ;
 ; entry in jump table @ L1568
 ;
-L1585: LDAW    $95
+L1585: LDAW    $95			; $FF95
 L1587: MOV     B,A
 L1588: ANI     B,$F8
 L158B: STC     
@@ -3250,37 +3598,40 @@ L158F: ONI     A,$08
 L1591: MVI     A,$06
 L1593: ANI     A,$07
 L1595: ORA     A,B
-L1597: STAW    $95
+L1597: STAW    $95			; $FF95
 L1599: MOV     D,A
 L159A: MVI     E,$00
 L159C: JR      L157F
 ;
 ; entry in jump table @ L1568
 ;
-L159D: LDAW    $95
+L159D: LDAW    $95				; $FF95
 L159F: INR     A
 L15A0: ANI     A,$03
-L15A2: STAW    $95
+L15A2: STAW    $95				; $FF95
 L15A4: NEI     A,$03
-L15A6: JR      L15AD
+L15A6: JR      L15AD			; otherwise
 L15A7: NEI     A,$01
-L15A9: MVI     A,$24
+L15A9: MVI     A,$24			; otherwise
 L15AB: MVI     A,$3C
 L15AD: MVI     A,$60
-L15AF: STAW    $81
+L15AF: STAW    $81				; $FF81
 L15B1: CALL    L16C1
 L15B4: JRE     L1582
 ;
 ; entry in jump table @ L1568
 ;
-L15B6: LDAW    $95
-L15B8: EQIW    $E7,$08
-L15BB: JR      L15C1
+L15B6: LDAW    $95				; $FF95
+L15B8: EQIW    $E7,$08			; $FFE7
+L15BB: JR      L15C1			; otherwise
 L15BC: ADI     A,$08
 L15BE: ANI     A,$1F
 L15C0: JR      L15C3
+;
+;
+;
 L15C1: XRI     A,$20
-L15C3: STAW    $95
+L15C3: STAW    $95				; $FF95
 L15C5: MOV     D,A
 L15C6: MVI     E,$01
 L15C8: CALL    L16E6
@@ -3296,36 +3647,39 @@ L15D7: JRE     L1582
 ;
 ; entry in jump table @ L1568
 ;
-L15D9: BIT     0,$02
-L15DB: JR      L15E3
+L15D9: BIT     0,$02		; $FF02
+L15DB: JR      L15E3		; otherwise
 L15DC: MVI     A,$80
 L15DE: CALF    L0E92
 L15E0: CALL    L1709
-L15E3: LTIW    $E8,$02
+L15E3: LTIW    $E8,$02		; $FFE8
 L15E6: MVI     A,$C0
 L15E8: MVI     A,$A0
 L15EA: CALF    L0B36
-L15EC: LDAW    $A8
-L15EE: XRAW    $E9
-L15F1: STAW    $A8
+L15EC: LDAW    $A8			; $FFA8
+L15EE: XRAW    $E9			; $FFE9
+L15F1: STAW    $A8			; $FFA8
 L15F3: CALF    L0B36
 L15F5: CALL    L16F9
-L15F8: INRW    $02
-L15FA: NOP     
+L15F8: INRW    $02			; $FF02
+L15FA: NOP					; negates potential skip     
 L15FB: JRE     L1582
-L15FD: MVIW    $98,$37
-L1600: LDAW    $E7
-L1602: LTI     A,$09
-L1604: JRE     L1630
+;
+;
+;
+L15FD: MVIW    $98,$37		; $FF98
+L1600: LDAW    $E7			; $FFE7
+L1602: LTI     A,$09		; skip next if less than 9
+L1604: JRE     L1630		; otherwise 
 L1606: CALF    L0A0C
-L1608: STAW    $97
-L160A: MVIW    $81,$18
-L160D: LDAW    $E7
+L1608: STAW    $97			; $FF97
+L160A: MVIW    $81,$18		; $FF81
+L160D: LDAW    $E7			; $FFE7
 L160F: SLL     A
 L1611: TABLE   
 L1613: JB
 ;
-; # JUMP TABLE
+; # JUMP TABLE -- 9 ENTRIES
 ;     
 L1614:
 	DW L1626
@@ -3340,7 +3694,7 @@ L1614:
 ;
 ; entry in jump table @ L1614
 ;
-L1626: ORIW    $E7,$80
+L1626: ORIW    $E7,$80				; $FFE7
 L1629: LXI     H,L167C				; data table
 L162C: CALF    L09E7
 L162E: CALF    L0D0F
@@ -3349,15 +3703,15 @@ L1630: JMP     L136E
 ; entry in jump table @ L1614
 ;
 L1633: LXI     H,L1685				; data table
-L1636: ORIW    $E7,$40
+L1636: ORIW    $E7,$40				; $FFE7
 L1639: JR      L162C
 ;
 ; entry in jump table @ L1614
 ;
 L163A: LXI     H,L168E				; data table
 L163D: CALF    L09E7
-L163F: NEIW    $E7,$03
-L1642: MVIW    $CC,$3F
+L163F: NEIW    $E7,$03				; $FFE7
+L1642: MVIW    $CC,$3F				; $FFCC
 L1645: CALF    L0D0F
 L1647: MVI     EOM,$00
 L164A: JR      L1630
@@ -3366,18 +3720,18 @@ L164A: JR      L1630
 ;
 L164B: LXI     H,L168E				; data table
 L164E: CALF    L09E7
-L1650: MVIW    $CE,$3F
-L1653: EQIW    $E7,$04
+L1650: MVIW    $CE,$3F				; $FFCE
+L1653: EQIW    $E7,$04				; $FFE7
 L1656: MVI     A,$7F
 L1658: MVI     A,$40
-L165A: STAW    $82
+L165A: STAW    $82					; $FF82
 L165C: JR      L1645
 ;
 ; entry in jump table @ L1614
 ;
 L165D: LXI     H,L1697				; data table
 L1660: CALF    L09E7
-L1662: MVIW    $81,$30
+L1662: MVIW    $81,$30				; $FF81
 L1665: CALF    L0D0F
 L1667: JRE     L1630
 ;
@@ -3385,11 +3739,11 @@ L1667: JRE     L1630
 ;
 L1669: LXI     H,L168E				; data table
 L166C: CALF    L09E7
-L166E: MVIW    $CC,$10
-L1671: EQIW    $E7,$07
+L166E: MVIW    $CC,$10				; $FFCC
+L1671: EQIW    $E7,$07				; $FFE7
 L1674: MVI     A,$30
 L1676: MVI     A,$24
-L1678: STAW    $81
+L1678: STAW    $81					; $FF81
 L167A: JRE     L1645
 ;
 ; # DATA TABLE USED BY L1629
@@ -3421,9 +3775,9 @@ L16A0:
 	LDAW    $A2				; $FFA2 -- dynamic sense value?
 	SLR     A
 	MOV     C,A
-	LDAW    $E7
+	LDAW    $E7				; $FFE7
 	CALF    L0F8D
-	ANIW    $8B,$F7
+	ANIW    $8B,$F7			; $FF8B
 	JRE     L1630
 ;
 ; data table referenced @ L0F8D
@@ -3440,13 +3794,13 @@ L16C3:
 	ORA     A,B
 	PUSH    B
 	CALF    L0B36
-	LDAW    $81
+	LDAW    $81			; $FF81
 	CALF    L0B36
 	MVI     A,$7F
 	CALF    L0B36
 	POP     B
 	DCR     B
-	JR      L16C3
+	JR      L16C3		; otherwise
 	RET
 	
 L16D6:
@@ -3473,23 +3827,23 @@ L16E6:
 	
 L16F9:
 	MVI     A,$90
-	ORAW    $E8
+	ORAW    $E8			; $FFE8
 	CALF    L0B36
-	LDAW    $81
+	LDAW    $81			; $FF81
 	CALF    L0B36
 	MVI     A,$7F
 	CALF    L0B36
 	RET
 	
 L1709:	
-	LDAW    $E8
+	LDAW    $E8			; $FFE8
 	INR     A
 	LTI     A,$06
 	MVI     A,$00
-	STAW    $E8
+	STAW    $E8			; $FFE8
 	INR     A
 	CALF    L0A0C
-	STAW    $97
+	STAW    $97			; $FF97
 	RET     
 
 L1718:
